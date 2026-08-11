@@ -1,0 +1,36 @@
+me:
+  get:
+    operationId: getMe
+    summary: Get current authenticated user
+    tags:
+      - Auth
+    x-api-version: v1
+    x-permission:
+      module: auth
+      resource: me
+      action: read
+    x-data-scopes:
+      - user:read
+    x-audit:
+      required: true
+    security:
+      - BearerAuth: []
+    responses:
+      "200":
+        description: Successfully retrieved user info
+        content:
+          application/json:
+            schema:
+              $ref: "schema.yaml#/SuccessGetMeResponse"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "schema.yaml#/UnauthorizedGetMeResponse"
+      "500":
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: "schema.yaml#/InternalErrorGetMeResponse"

@@ -1,0 +1,13 @@
+SuccessGetStatusResponse:
+  $ref: paths/status/schema.yaml#/SuccessGetStatusResponse
+NotFoundGetStatusResponse:
+  $ref: paths/status/schema.yaml#/NotFoundGetStatusResponse
+InternalErrorGetStatusResponse:
+  $ref: paths/status/schema.yaml#/InternalErrorGetStatusResponse
+
+SuccessGetMeResponse:
+  $ref: paths/auth/schema.yaml#/SuccessGetMeResponse
+UnauthorizedGetMeResponse:
+  $ref: paths/auth/schema.yaml#/UnauthorizedGetMeResponse
+InternalErrorGetMeResponse:
+  $ref: paths/auth/schema.yaml#/InternalErrorGetMeResponse

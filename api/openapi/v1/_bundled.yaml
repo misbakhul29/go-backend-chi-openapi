@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: Chi Framework API
+  description: OpenAPI Swagger Docs
+  version: 1.0.1
+  license:
+    name: Haz Lis
+    identifier: test
+    url: http://test.com
+servers:
+  - url: /api/v1
+    description: API v1
+tags:
+  - name: Status
+    description: API Status
+  - name: Auth
+    description: Auth
+paths:
+  /status:
+    get:
+      operationId: getStatus
+      summary: Get API Status
+      tags:
+        - Status
+      x-api-version: v1
+      security: []
+      responses:
+        '200':
+          description: API is healthy and running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessGetStatusResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundGetStatusResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalErrorGetStatusResponse'
+  /auth/me:
+    get:
+      operationId: getMe
+      summary: Get current authenticated user
+      tags:
+        - Auth
+      x-api-version: v1
+      x-permission:
+        module: auth
+        resource: me
+        action: read
+      x-data-scopes:
+        - user:read
+      x-audit:
+        required: true
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessGetMeResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedGetMeResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalErrorGetMeResponse'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://example.com/oauth/authorize
+          tokenUrl: https://example.com/oauth/token
+          scopes:
+            read: Grants read access
+            write: Grants write access
+            admin: Grants access to admin operations
+  schemas:
+    SuccessGetStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+          description: Status indicator
+          enum:
+            - ok
+            - maintenance
+        timestamp:
+          type: string
+          format: date-time
+          example: '2023-10-26T10:00:00Z'
+          description: ISO 8601 timestamp of the response
+    NotFoundGetStatusResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Not Found
+          description: Error message
+    InternalErrorGetStatusResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal server error
+          description: Error message
+    SuccessGetMeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: '123'
+          description: User ID
+        name:
+          type: string
+          example: John Doe
+          description: User's full name
+        email:
+          type: string
+          format: email
+          example: john@example.com
+          description: User's email address
+    UnauthorizedGetMeResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Unauthorized
+          description: Error message
+    InternalErrorGetMeResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal server error
+          description: Error message

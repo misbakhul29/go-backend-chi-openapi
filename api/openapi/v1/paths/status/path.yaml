@@ -1,0 +1,26 @@
+get:
+  operationId: getStatus
+  summary: Get API Status
+  tags:
+    - Status
+  x-api-version: v1
+  security: []
+  responses:
+    "200":
+      description: API is healthy and running
+      content:
+        application/json:
+          schema:
+            $ref: "schema.yaml#/SuccessGetStatusResponse"
+    "404":
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: "schema.yaml#/NotFoundGetStatusResponse"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: schema.yaml#/InternalErrorGetStatusResponse

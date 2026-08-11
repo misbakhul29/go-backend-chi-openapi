@@ -1,0 +1,5 @@
+/status:
+  $ref: status/path.yaml
+
+/auth/me:
+  $ref: auth/path.yaml#/me

@@ -1,0 +1,31 @@
+SuccessGetStatusResponse:
+  type: object
+  properties:
+    status:
+      type: string
+      example: ok
+      description: Status indicator
+      enum:
+        - ok
+        - maintenance
+    timestamp:
+      type: string
+      format: date-time
+      example: "2023-10-26T10:00:00Z"
+      description: ISO 8601 timestamp of the response 
+
+NotFoundGetStatusResponse:
+  type: object
+  properties:
+    error:
+      type: string
+      example: Not Found
+      description: Error message
+
+InternalErrorGetStatusResponse:
+  type: object
+  properties:
+    error:
+      type: string
+      example: Internal server error
+      description: Error message

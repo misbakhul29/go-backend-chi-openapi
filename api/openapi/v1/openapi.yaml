@@ -1,0 +1,44 @@
+openapi: 3.1.0
+
+info:
+  title: Chi Framework API
+  description: OpenAPI Swagger Docs
+  version: 1.0.1
+  license:
+    name: Haz Lis
+    identifier: test
+    url: http://test.com
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Status
+    description: API Status
+  - name: Auth
+    description: Auth
+
+components:
+  securitySchemes:
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://example.com/oauth/authorize
+          tokenUrl: https://example.com/oauth/token
+          scopes:
+            read: Grants read access
+            write: Grants write access
+            admin: Grants access to admin operations
+
+  schemas:
+    $ref: schemas.yaml
+
+paths:
+  $ref: paths/path.yaml
