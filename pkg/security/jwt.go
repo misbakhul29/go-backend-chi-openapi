@@ -54,6 +54,17 @@ func (v *DummyJWTVerifier) Verify(ctx context.Context, token string) (*JWTClaims
 			Permissions: []string{"check:rbac:read"},
 			Scopes:      []string{"check:scopes:read"},
 		}, nil
+	} else if token == "no-permission-token" {
+		return &JWTClaims{
+			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000009"),
+			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			JTI:         "no-permission-jti",
+			RolesHash:   "no-permission-hash",
+			AMR:         []string{"pwd"},
+			Permissions: []string{}, // Empty permissions
+			Scopes:      []string{}, // Empty scopes
+		}, nil
 	}
 	return nil, ErrInvalidToken
 }

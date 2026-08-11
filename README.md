@@ -151,3 +151,54 @@ Response:
   "email": "jhon.dow@mail.com"
 }
 ```
+
+### 5. Middleware & Security Verification Check Endpoints
+We have check endpoints mapped with specific OpenAPI security extensions (`x-permission`, `x-data-scopes`, `x-audit`, and `x-step-up-mfa`) to verify their runtime execution:
+
+#### RBAC Permission Verification (`x-permission`)
+- **Passed (HTTP 200)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/rbac' \
+    -H 'Authorization: Bearer my-secret-token'
+  ```
+- **Forbidden (HTTP 403)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/rbac' \
+    -H 'Authorization: Bearer no-permission-token'
+  ```
+
+#### Data Scopes Verification (`x-data-scopes`)
+- **Passed (HTTP 200)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/scopes' \
+    -H 'Authorization: Bearer my-secret-token'
+  ```
+- **Forbidden (HTTP 403)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/scopes' \
+    -H 'Authorization: Bearer no-permission-token'
+  ```
+
+#### Step-Up MFA Verification (`x-step-up-mfa`)
+- **Passed (HTTP 200)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/mfa' \
+    -H 'Authorization: Bearer mfa-token'
+  ```
+- **Forbidden (HTTP 403)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/mfa' \
+    -H 'Authorization: Bearer my-secret-token'
+  ```
+
+#### Audit Logging Verification (`x-audit`)
+- **Passed (HTTP 200 with audit tag)**:
+  ```bash
+  curl -X 'GET' 'http://localhost:8000/api/v1/check/audit' \
+    -H 'Authorization: Bearer my-secret-token'
+  ```
+  Check the server console for the generated log:
+  ```text
+  [AUDIT] Authenticated endpoint accessed: GET /api/v1/check/audit (User: 00000000-0000-0000-0000-000000000001, Operation: CheckAudit)
+  ```
+
