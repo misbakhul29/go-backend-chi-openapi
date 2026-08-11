@@ -7,7 +7,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apiv1 "github.com/misbakhul29/learning-chi/api/openapi/v1/generated"
-	"github.com/misbakhul29/learning-chi/pkg/pointerx"
 	"github.com/misbakhul29/learning-chi/pkg/security"
 )
 
@@ -22,9 +21,9 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	principal, _ := security.PrincipalFromContext(r.Context())
 
 	resp := apiv1.SuccessGetMeResponse{
-		Id:    pointerx.Ptr(principal.UserID.String()),
-		Name:  pointerx.Ptr("John Doe"),
-		Email: pointerx.Ptr(openapi_types.Email("jhon.dow@mail.com")),
+		Id:    new(principal.UserID.String()),
+		Name:  new("John Doe"),
+		Email: new(openapi_types.Email("jhon.dow@mail.com")),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
