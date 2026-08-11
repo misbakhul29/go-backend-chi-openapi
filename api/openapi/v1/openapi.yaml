@@ -18,6 +18,8 @@ tags:
     description: API Status
   - name: Auth
     description: Auth
+  - name: Check
+    description: Middleware verification checks
 
 components:
   securitySchemes:

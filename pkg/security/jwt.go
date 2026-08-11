@@ -15,12 +15,14 @@ var (
 )
 
 type JWTClaims struct {
-	Subject   uuid.UUID
-	TenantID  uuid.UUID
-	SessionID uuid.UUID
-	JTI       string
-	RolesHash string
-	AMR       []string
+	Subject     uuid.UUID
+	TenantID    uuid.UUID
+	SessionID   uuid.UUID
+	JTI         string
+	RolesHash   string
+	AMR         []string
+	Permissions []string
+	Scopes      []string
 }
 
 type JWTVerifier interface {
@@ -32,12 +34,25 @@ type DummyJWTVerifier struct{}
 func (v *DummyJWTVerifier) Verify(ctx context.Context, token string) (*JWTClaims, error) {
 	if token == "my-secret-token" {
 		return &JWTClaims{
-			Subject:   uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-			TenantID:  uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-			SessionID: uuid.MustParse("00000000-0000-0000-0000-000000000003"),
-			JTI:       "dummy-jti",
-			RolesHash: "dummy-hash",
-			AMR:       []string{"pwd"},
+			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			JTI:         "dummy-jti",
+			RolesHash:   "dummy-hash",
+			AMR:         []string{"pwd"},
+			Permissions: []string{"check:rbac:read"},
+			Scopes:      []string{"check:scopes:read"},
+		}, nil
+	} else if token == "mfa-token" {
+		return &JWTClaims{
+			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
+			JTI:         "mfa-jti",
+			RolesHash:   "mfa-hash",
+			AMR:         []string{"pwd", "mfa"},
+			Permissions: []string{"check:rbac:read"},
+			Scopes:      []string{"check:scopes:read"},
 		}, nil
 	}
 	return nil, ErrInvalidToken
@@ -60,12 +75,14 @@ func (s *JWTService) Authenticate(ctx context.Context, token string) (*Principal
 	}
 
 	return &Principal{
-		UserID:    claims.Subject,
-		TenantID:  claims.TenantID,
-		SessionID: claims.SessionID,
-		JTI:       claims.JTI,
-		RolesHash: claims.RolesHash,
-		AMR:       claims.AMR,
+		UserID:      claims.Subject,
+		TenantID:    claims.TenantID,
+		SessionID:   claims.SessionID,
+		JTI:         claims.JTI,
+		RolesHash:   claims.RolesHash,
+		AMR:         claims.AMR,
+		Permissions: claims.Permissions,
+		Scopes:      claims.Scopes,
 	}, nil
 }
 

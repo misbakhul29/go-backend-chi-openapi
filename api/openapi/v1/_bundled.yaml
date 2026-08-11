@@ -15,6 +15,8 @@ tags:
     description: API Status
   - name: Auth
     description: Auth
+  - name: Check
+    description: Middleware verification checks
 paths:
   /status:
     get:
@@ -79,6 +81,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalErrorGetMeResponse'
+  /check/rbac:
+    get:
+      operationId: checkRbac
+      summary: Check RBAC permission middleware
+      tags:
+        - Check
+      x-api-version: v1
+      x-permission:
+        module: check
+        resource: rbac
+        action: read
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: RBAC verification passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /check/scopes:
+    get:
+      operationId: checkScopes
+      summary: Check data scopes middleware
+      tags:
+        - Check
+      x-api-version: v1
+      x-data-scopes:
+        - check:scopes:read
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data scopes verification passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /check/audit:
+    get:
+      operationId: checkAudit
+      summary: Check audit logging middleware
+      tags:
+        - Check
+      x-api-version: v1
+      x-audit: true
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Audit verification passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResponse'
+  /check/mfa:
+    get:
+      operationId: checkMfa
+      summary: Check Step-Up MFA middleware
+      tags:
+        - Check
+      x-api-version: v1
+      x-step-up-mfa: true
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: MFA verification passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     BearerAuth:
@@ -154,3 +246,19 @@ components:
           type: string
           example: Internal server error
           description: Error message
+    CheckResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Verification passed
+        audit_logged:
+          type: boolean
+          example: true
+          description: Indicates if audit logging was triggered for the request
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Forbidden

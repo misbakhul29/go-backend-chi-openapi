@@ -37,6 +37,18 @@ func (e SuccessGetStatusResponseStatus) Valid() bool {
 	}
 }
 
+// CheckResponse defines model for CheckResponse.
+type CheckResponse struct {
+	// AuditLogged Indicates if audit logging was triggered for the request
+	AuditLogged *bool   `json:"audit_logged,omitempty"`
+	Message     *string `json:"message,omitempty"`
+}
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	Error *string `json:"error,omitempty"`
+}
+
 // InternalErrorGetMeResponse defines model for InternalErrorGetMeResponse.
 type InternalErrorGetMeResponse struct {
 	// Error Error message
@@ -90,6 +102,18 @@ type ServerInterface interface {
 	// GetMe Get current authenticated user
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// CheckAudit Check audit logging middleware
+	// (GET /check/audit)
+	CheckAudit(w http.ResponseWriter, r *http.Request)
+	// CheckMfa Check Step-Up MFA middleware
+	// (GET /check/mfa)
+	CheckMfa(w http.ResponseWriter, r *http.Request)
+	// CheckRbac Check RBAC permission middleware
+	// (GET /check/rbac)
+	CheckRbac(w http.ResponseWriter, r *http.Request)
+	// CheckScopes Check data scopes middleware
+	// (GET /check/scopes)
+	CheckScopes(w http.ResponseWriter, r *http.Request)
 	// GetStatus Get API Status
 	// (GET /status)
 	GetStatus(w http.ResponseWriter, r *http.Request)
@@ -102,6 +126,30 @@ type Unimplemented struct{}
 // GetMe Get current authenticated user
 // (GET /auth/me)
 func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CheckAudit Check audit logging middleware
+// (GET /check/audit)
+func (_ Unimplemented) CheckAudit(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CheckMfa Check Step-Up MFA middleware
+// (GET /check/mfa)
+func (_ Unimplemented) CheckMfa(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CheckRbac Check RBAC permission middleware
+// (GET /check/rbac)
+func (_ Unimplemented) CheckRbac(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CheckScopes Check data scopes middleware
+// (GET /check/scopes)
+func (_ Unimplemented) CheckScopes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -125,6 +173,62 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckAudit operation middleware
+func (siw *ServerInterfaceWrapper) CheckAudit(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckAudit(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckMfa operation middleware
+func (siw *ServerInterfaceWrapper) CheckMfa(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckMfa(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckRbac operation middleware
+func (siw *ServerInterfaceWrapper) CheckRbac(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckRbac(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckScopes operation middleware
+func (siw *ServerInterfaceWrapper) CheckScopes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckScopes(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -267,6 +371,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetMe)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/check/rbac", wrapper.CheckRbac)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/check/scopes", wrapper.CheckScopes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/check/audit", wrapper.CheckAudit)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/check/mfa", wrapper.CheckMfa)
+	})
 
 	return r
 }
@@ -276,22 +392,27 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

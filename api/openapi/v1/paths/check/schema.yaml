@@ -1,0 +1,17 @@
+CheckResponse:
+  type: object
+  properties:
+    message:
+      type: string
+      example: "Verification passed"
+    audit_logged:
+      type: boolean
+      example: true
+      description: Indicates if audit logging was triggered for the request
+
+ErrorResponse:
+  type: object
+  properties:
+    error:
+      type: string
+      example: "Forbidden"
