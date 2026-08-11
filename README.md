@@ -15,7 +15,7 @@ Instead of manually hardcoding and wiring authentication or permission middlewar
 - **Custom Declarative Extensions**: Handlers can read custom OpenAPI extension properties defined directly inside the OpenAPI operation spec, such as:
   - `x-permission`: Map module, resource, and action (e.g. `auth:me:read`) for RBAC checks.
   - `x-data-scopes`: Finely-grained scopes (e.g. `user:read`).
-  - `x-audit`: Declarative audit logging policy.
+  - `x-audit`: Declarative audit logging policy (e.g. `x-audit: true`). When enabled, the `Security` middleware dynamically catches the request, writes an audit record to the console/log-aggregator, and forwards an audit verification flag in the context to the handler.
   - `x-step-up-mfa`: Step-Up multi-factor authentication check requirements.
 - **Unified Middleware**: A single middleware (`securityMiddleware.Security`) is applied globally to the API route group. It extracts request details, finds the corresponding route in Swagger, validates credentials, and injects a unified identity `Principal` into the request context.
 
