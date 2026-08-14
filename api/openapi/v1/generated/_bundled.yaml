@@ -18,6 +18,13 @@ components:
                 - userId
                 - role
             type: object
+        ForbiddenResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Forbidden
+                    type: string
+            type: object
         InternalErrorGetMeResponse:
             properties:
                 error:
@@ -151,6 +158,13 @@ components:
                     type: string
             type: object
         UnauthorizedGetMeResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Unauthorized
+                    type: string
+            type: object
+        UnauthorizedResponse:
             properties:
                 error:
                     description: Error message
@@ -349,8 +363,16 @@ paths:
                                 $ref: '#/components/schemas/SuccessPermissionCheckResponse'
                     description: Has permission
                 "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
                     description: Unauthorized
                 "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ForbiddenResponse'
                     description: Forbidden
             security:
                 - BearerAuth: []

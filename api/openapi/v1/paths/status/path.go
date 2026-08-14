@@ -64,11 +64,21 @@ func RegisterPaths(paths *openapi3.Paths) {
 	permCheckResponses.Set("401", &openapi3.ResponseRef{
 		Value: &openapi3.Response{
 			Description: pointerToString("Unauthorized"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/UnauthorizedResponse", nil),
+				},
+			},
 		},
 	})
 	permCheckResponses.Set("403", &openapi3.ResponseRef{
 		Value: &openapi3.Response{
 			Description: pointerToString("Forbidden"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/ForbiddenResponse", nil),
+				},
+			},
 		},
 	})
 

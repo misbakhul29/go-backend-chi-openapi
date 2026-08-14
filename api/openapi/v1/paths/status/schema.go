@@ -54,4 +54,26 @@ func RegisterSchemas(schemas openapi3.Schemas) {
 			}),
 		},
 	})
+
+	schemas["UnauthorizedResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"error": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:        &openapi3.Types{"string"},
+				Example:     "Unauthorized",
+				Description: "Error message",
+			}),
+		},
+	})
+
+	schemas["ForbiddenResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"error": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:        &openapi3.Types{"string"},
+				Example:     "Forbidden",
+				Description: "Error message",
+			}),
+		},
+	})
 }
