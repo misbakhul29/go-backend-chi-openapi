@@ -51,26 +51,8 @@ func InitDB(cfg config.Database) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	_ = db.Callback().Create().Before("gorm:create").Register("set_tenant_context", setTenantContextCallback)
-	_ = db.Callback().Query().Before("gorm:query").Register("set_tenant_context", setTenantContextCallback)
-	_ = db.Callback().Update().Before("gorm:update").Register("set_tenant_context", setTenantContextCallback)
-	_ = db.Callback().Delete().Before("gorm:delete").Register("set_tenant_context", setTenantContextCallback)
-
 	observer.Log.Info("database connection established successfully")
 	return db, nil
-}
-
-func setTenantContextCallback(db *gorm.DB) {
-	if db.Statement == nil || db.Statement.Context == nil {
-		return
-	}
-	ctx := db.Statement.Context
-	if tid, ok := ctx.Value(observer.TenantIDKey).(string); ok && tid != "" {
-		_ = db.Exec("SELECT set_config('app.tenant_id', ?, true)", tid).Error
-	}
-	if uid, ok := ctx.Value(observer.UserIDKey).(string); ok && uid != "" {
-		_ = db.Exec("SELECT set_config('app.user_id', ?, true)", uid).Error
-	}
 }
 
 func CloseDB(db *gorm.DB) error {
