@@ -47,9 +47,9 @@ func (h *AuthHandler) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := apiv1.SuccessRegisterResponse{
-		Id:    toStrPointer(user.ID),
-		Name:  toStrPointer(user.Name),
-		Email: toEmailPointer(user.Email),
+		Id:    new(user.ID),
+		Name:  new(user.Name),
+		Email: new(openapi_types.Email(user.Email)),
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, resp)
@@ -80,15 +80,15 @@ func (h *AuthHandler) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := apiv1.SuccessLoginResponse{
-		AccessToken: toStrPointer(tokens.AccessToken),
+		AccessToken: new(tokens.AccessToken),
 		User: &struct {
 			Email *openapi_types.Email `json:"email,omitempty"`
 			Id    *string              `json:"id,omitempty"`
 			Name  *string              `json:"name,omitempty"`
 		}{
-			Id:    toStrPointer(user.ID),
-			Name:  toStrPointer(user.Name),
-			Email: toEmailPointer(user.Email),
+			Id:    new(user.ID),
+			Name:  new(user.Name),
+			Email: new(openapi_types.Email(user.Email)),
 		},
 	}
 
@@ -115,9 +115,9 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := apiv1.SuccessGetMeResponse{
-		Id:    toStrPointer(user.ID),
-		Name:  toStrPointer(user.Name),
-		Email: toEmailPointer(user.Email),
+		Id:    new(user.ID),
+		Name:  new(user.Name),
+		Email: new(openapi_types.Email(user.Email)),
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
@@ -138,7 +138,7 @@ func (h *AuthHandler) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := apiv1.SuccessLogoutResponse{
-		Message: toStrPointer("successfully logged out"),
+		Message: new("successfully logged out"),
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
