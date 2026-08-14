@@ -1,138 +1,132 @@
-openapi: 3.1.0
-info:
-  title: Backend Framework API
-  description: OpenAPI Swagger Docs
-  version: 1.0.1
-  license:
-    name: MIT
-    identifier: MIT
-    url: https://opensource.org/licenses/MIT
-servers:
-  - url: /api/v1
-    description: API v1
-tags:
-  - name: Status
-    description: API Status
-  - name: Auth
-    description: Auth
-paths:
-  /status:
-    get:
-      operationId: getStatus
-      summary: Get API Status
-      tags:
-        - Status
-      x-api-version: v1
-      security: []
-      responses:
-        '200':
-          description: API is healthy and running
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessGetStatusResponse'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundGetStatusResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalErrorGetStatusResponse'
-  /auth/me:
-    get:
-      operationId: getMe
-      summary: Get current authenticated user
-      tags:
-        - Auth
-      x-api-version: v1
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully retrieved user info
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessGetMeResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedGetMeResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalErrorGetMeResponse'
 components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-  schemas:
-    SuccessGetStatusResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: ok
-          description: Status indicator
-          enum:
-            - ok
-            - maintenance
-        timestamp:
-          type: string
-          format: date-time
-          example: '2023-10-26T10:00:00Z'
-          description: ISO 8601 timestamp of the response
-    NotFoundGetStatusResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Not Found
-          description: Error message
-    InternalErrorGetStatusResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Internal server error
-          description: Error message
-    SuccessGetMeResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          example: '123'
-          description: User ID
-        name:
-          type: string
-          example: John Doe
-          description: User's full name
-        email:
-          type: string
-          format: email
-          example: john@example.com
-          description: User's email address
-    UnauthorizedGetMeResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Unauthorized
-          description: Error message
-    InternalErrorGetMeResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Internal server error
-          description: Error message
+    schemas:
+        InternalErrorGetMeResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Internal server error
+                    type: string
+            type: object
+        InternalErrorGetStatusResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Internal server error
+                    type: string
+            type: object
+        NotFoundGetStatusResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Not Found
+                    type: string
+            type: object
+        SuccessGetMeResponse:
+            properties:
+                email:
+                    description: User's email address
+                    example: john@example.com
+                    format: email
+                    type: string
+                id:
+                    description: User ID
+                    example: "123"
+                    type: string
+                name:
+                    description: User's full name
+                    example: John Doe
+                    type: string
+            type: object
+        SuccessGetStatusResponse:
+            properties:
+                status:
+                    description: Status indicator
+                    enum:
+                        - ok
+                        - maintenance
+                    example: ok
+                    type: string
+                timestamp:
+                    description: ISO 8601 timestamp of the response
+                    example: "2023-10-26T10:00:00Z"
+                    format: date-time
+                    type: string
+            type: object
+        UnauthorizedGetMeResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Unauthorized
+                    type: string
+            type: object
+    securitySchemes:
+        BearerAuth:
+            scheme: bearer
+            type: http
+info:
+    description: OpenAPI Swagger Docs
+    license:
+        name: MIT
+        url: https://opensource.org/licenses/MIT
+    title: Backend Framework API
+    version: 1.0.1
+openapi: 3.1.0
+paths:
+    /auth/me:
+        get:
+            operationId: getMe
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessGetMeResponse'
+                    description: Successfully retrieved user info
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedGetMeResponse'
+                    description: Unauthorized
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalErrorGetMeResponse'
+                    description: Internal server error
+            security:
+                - BearerAuth: []
+            summary: Get current authenticated user
+            tags:
+                - Auth
+            x-api-version: v1
+    /status:
+        get:
+            operationId: getStatus
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessGetStatusResponse'
+                    description: API is healthy and running
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundGetStatusResponse'
+                    description: Not Found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalErrorGetStatusResponse'
+                    description: Internal server error
+            security: []
+            summary: Get API Status
+            tags:
+                - Status
+            x-api-version: v1
+servers:
+    - description: API v1
+      url: /api/v1
