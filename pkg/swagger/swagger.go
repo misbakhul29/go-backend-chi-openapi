@@ -46,7 +46,7 @@ func Setup(r chi.Router) {
 	r.Get("/docs", UI())
 
 	// Serve OpenAPI specs from api/openapi/v1
-	specDir := http.Dir("api/openapi/v1")
+	specDir := http.Dir("api/openapi/v1/generated")
 	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		rctx := chi.RouteContext(r.Context())
 		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")

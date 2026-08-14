@@ -17,12 +17,12 @@ func main() {
 		log.Fatalf("failed to marshal: %v", err)
 	}
 
-	bundledPath := "api/openapi/v1/_bundled.yaml"
+	bundledPath := "api/openapi/v1/generated/_bundled.yaml"
 	err = os.WriteFile(bundledPath, yamlData, 0644)
 	if err != nil {
 		log.Fatalf("failed to write file: %v", err)
 	}
-	log.Println("Successfully generated api/openapi/v1/_bundled.yaml!")
+	log.Println("Successfully generated api/openapi/v1/generated/_bundled.yaml!")
 
 	// 2. Generate Go Code (replacing genapi.sh)
 	outputCodePath := "api/openapi/v1/generated/api.gen.go"
