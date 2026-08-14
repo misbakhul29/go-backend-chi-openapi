@@ -24,7 +24,6 @@ type JWTClaims struct {
 	RolesHash   string
 	AMR         []string
 	Permissions []string
-	Scopes      []string
 }
 
 type JWTVerifier interface {
@@ -40,6 +39,8 @@ func NewJWTVerifier(secret []byte) *JWTVerifierImpl {
 }
 
 func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClaims, error) {
+
+
 	token, err := jwt.ParseWithClaims(tokenStr, &accessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -66,7 +67,6 @@ func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClai
 		return nil, ErrInvalidToken
 	}
 
-	// SessionID can be fallback to UUID Nil if not specified in accessClaims
 	var sessionUUID uuid.UUID
 	if claims.ID != "" {
 		if u, err := uuid.Parse(claims.ID); err == nil {
@@ -79,10 +79,9 @@ func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClai
 		TenantID:    tenantUUID,
 		SessionID:   sessionUUID,
 		JTI:         claims.ID,
-		RolesHash:   "", // Optional hash
+		RolesHash:   "",
 		AMR:         claims.AMR,
 		Permissions: claims.Permissions,
-		Scopes:      claims.Scopes,
 	}, nil
 }
 
@@ -110,7 +109,6 @@ func (s *JWTService) Authenticate(ctx context.Context, token string) (*Principal
 		RolesHash:   claims.RolesHash,
 		AMR:         claims.AMR,
 		Permissions: claims.Permissions,
-		Scopes:      claims.Scopes,
 	}, nil
 }
 

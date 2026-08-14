@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/misbakhul29/backend-framework/config"
+	"github.com/misbakhul29/backend-framework/pkg/db/models"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -96,7 +97,12 @@ func PingDB(ctx context.Context, db *gorm.DB) error {
 
 func Migration(db *gorm.DB) error {
 	quietDB := db.Session(&gorm.Session{Logger: logger.Discard})
-	err := quietDB.AutoMigrate()
+	err := quietDB.AutoMigrate(
+		&models.User{},
+		&models.Session{},
+		&models.Account{},
+		&models.Verification{},
+	)
 	if err != nil && !strings.Contains(err.Error(), "42704") {
 		observer.Log.Warn("AutoMigrate schema notice", "error", err)
 	}

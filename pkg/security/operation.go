@@ -32,9 +32,7 @@ type OperationPolicy struct {
 	APIVersion  string            `json:"apiVersion"`
 	Security    SecurityPolicy    `json:"security"`
 	Permission  *PermissionPolicy `json:"permission"`
-	DataScopes  []string          `json:"dataScopes"`
 	Audit       AuditPolicy       `json:"audit"`
-	StepUpMFA   StepUpMFAPolicy   `json:"stepUpMfa"`
 	RateLimit   *RateLimitPolicy  `json:"rateLimit"`
 }
 
@@ -44,10 +42,6 @@ type RateLimitPolicy struct {
 }
 
 type AuditPolicy struct {
-	Required bool `json:"required"`
-}
-
-type StepUpMFAPolicy struct {
 	Required bool `json:"required"`
 }
 
@@ -119,42 +113,14 @@ func (pr *PolicyResolver) Resolve(r *http.Request) (OperationPolicy, bool) {
 		}
 	}
 
-	// Extract x-data-scopes extension
-	if ext, ok := operation.Extensions["x-data-scopes"]; ok {
-		if data, err := json.Marshal(ext); err == nil {
-			var scopes []string
-			if err := json.Unmarshal(data, &scopes); err == nil {
-				policy.DataScopes = scopes
-			}
-		}
-	}
-
 	// Extract x-audit extension
 	if ext, ok := operation.Extensions["x-audit"]; ok {
 		if data, err := json.Marshal(ext); err == nil {
-			// Can handle bool format: x-audit: true
 			var auditBool bool
 			if err := json.Unmarshal(data, &auditBool); err == nil {
 				policy.Audit.Required = auditBool
 			} else {
-				// Or object format: x-audit: { required: true }
 				_ = json.Unmarshal(data, &policy.Audit)
-			}
-		}
-	}
-
-	// Extract x-step-up-mfa extension
-	if ext, ok := operation.Extensions["x-step-up-mfa"]; ok {
-		if data, err := json.Marshal(ext); err == nil {
-			var mfa StepUpMFAPolicy
-			// Can handle bool format
-			var mfaBool bool
-			if err := json.Unmarshal(data, &mfaBool); err == nil {
-				policy.StepUpMFA.Required = mfaBool
-			} else {
-				// Or object format
-				_ = json.Unmarshal(data, &mfa)
-				policy.StepUpMFA = mfa
 			}
 		}
 	}

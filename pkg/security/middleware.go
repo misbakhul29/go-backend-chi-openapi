@@ -86,41 +86,6 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 		}
 	}
 
-	// 2. Data Scopes Check
-	if len(policy.DataScopes) > 0 {
-		hasScope := false
-		for _, reqScope := range policy.DataScopes {
-			for _, s := range principal.Scopes {
-				if s == reqScope {
-					hasScope = true
-					break
-				}
-			}
-			if hasScope {
-				break
-			}
-		}
-		if !hasScope {
-			httpx.WriteError(w, r, httpx.ErrForbidden)
-			return
-		}
-	}
-
-	// 3. Step-Up MFA Check
-	if policy.StepUpMFA.Required {
-		hasMFA := false
-		for _, method := range principal.AMR {
-			if method == "mfa" {
-				hasMFA = true
-				break
-			}
-		}
-		if !hasMFA {
-			httpx.WriteError(w, r, httpx.ErrMfaRequired)
-			return
-		}
-	}
-
 	next.ServeHTTP(w, r)
 }
 

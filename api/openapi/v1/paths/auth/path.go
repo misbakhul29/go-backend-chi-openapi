@@ -37,6 +37,107 @@ func RegisterPaths(paths *openapi3.Paths) {
 		},
 	})
 
+	// /auth/register endpoint
+	registerResponses := openapi3.NewResponses()
+	registerResponses.Set("201", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("User successfully registered"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessRegisterResponse", nil),
+				},
+			},
+		},
+	})
+	registerResponses.Set("400", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Bad Request"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/BadRequestResponse", nil),
+				},
+			},
+		},
+	})
+
+	paths.Set("/auth/register", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postAuthRegister",
+			Summary:     "Register a new user",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Required: true,
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{
+							Schema: openapi3.NewSchemaRef("#/components/schemas/RegisterRequest", nil),
+						},
+					},
+				},
+			},
+			Responses: registerResponses,
+		},
+	})
+
+	// /auth/login endpoint
+	loginResponses := openapi3.NewResponses()
+	loginResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("User successfully logged in"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessLoginResponse", nil),
+				},
+			},
+		},
+	})
+	loginResponses.Set("401", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Unauthorized"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/UnauthorizedGetMeResponse", nil),
+				},
+			},
+		},
+	})
+	loginResponses.Set("400", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Bad Request"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/BadRequestResponse", nil),
+				},
+			},
+		},
+	})
+
+	paths.Set("/auth/login", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postAuthLogin",
+			Summary:     "Authenticate user and retrieve access token",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Required: true,
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{
+							Schema: openapi3.NewSchemaRef("#/components/schemas/LoginRequest", nil),
+						},
+					},
+				},
+			},
+			Responses: loginResponses,
+		},
+	})
+
+	// /auth/me endpoint
 	paths.Set("/auth/me", &openapi3.PathItem{
 		Get: &openapi3.Operation{
 			OperationID: "getMe",
@@ -44,6 +145,12 @@ func RegisterPaths(paths *openapi3.Paths) {
 			Tags:        []string{"Auth"},
 			Extensions: map[string]any{
 				"x-api-version": "v1",
+				"x-audit":       true,
+				"x-permission": map[string]string{
+					"module":   "auth",
+					"resource": "me",
+					"action":   "read",
+				},
 			},
 			Security: &openapi3.SecurityRequirements{
 				openapi3.SecurityRequirement{

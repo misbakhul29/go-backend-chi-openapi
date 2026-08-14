@@ -16,7 +16,6 @@ type Principal struct {
 	RolesHash   string
 	AMR         []string
 	Permissions []string
-	Scopes      []string
 }
 
 // WithPrincipal menambahkan principal ke context

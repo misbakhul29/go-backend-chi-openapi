@@ -2,31 +2,123 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apiv1 "github.com/misbakhul29/backend-framework/api/openapi/v1/generated"
+	"github.com/misbakhul29/backend-framework/pkg/httpx"
 	"github.com/misbakhul29/backend-framework/pkg/security"
 )
 
-type AuthHandler struct{}
-
-func NewHandler() *AuthHandler {
-	return &AuthHandler{}
+type AuthHandler struct {
+	service AuthService
 }
 
-// GetMe mengembalikan data user yang sedang login
-func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
-	principal, _ := security.PrincipalFromContext(r.Context())
+func NewHandler(service AuthService) *AuthHandler {
+	return &AuthHandler{
+		service: service,
+	}
+}
 
-	resp := apiv1.SuccessGetMeResponse{
-		Id:    new(principal.UserID.String()),
-		Name:  new("John Doe"),
-		Email: new(openapi_types.Email("jhon.dow@mail.com")),
+// PostAuthRegister handles user registration requests
+func (h *AuthHandler) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
+	var req apiv1.RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, r, httpx.ErrBadRequest)
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	if req.Name == "" || req.Email == "" || req.Password == "" {
+		httpx.WriteError(w, r, httpx.ErrValidation)
+		return
+	}
+
+	user, err := h.service.Register(r.Context(), req.Name, string(req.Email), req.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrUserAlreadyExists):
+			httpx.WriteError(w, r, httpx.ErrConflict)
+		default:
+			httpx.WriteError(w, r, httpx.ErrInternal)
+		}
+		return
+	}
+
+	resp := apiv1.SuccessRegisterResponse{
+		Id:    toStrPointer(user.ID),
+		Name:  toStrPointer(user.Name),
+		Email: toEmailPointer(user.Email),
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, resp)
+}
+
+// PostAuthLogin handles user login requests
+func (h *AuthHandler) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	var req apiv1.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, r, httpx.ErrBadRequest)
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		httpx.WriteError(w, r, httpx.ErrValidation)
+		return
+	}
+
+	user, tokens, err := h.service.Login(r.Context(), string(req.Email), req.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidCredentials):
+			httpx.WriteError(w, r, httpx.ErrUnauthorized)
+		default:
+			httpx.WriteError(w, r, httpx.ErrInternal)
+		}
+		return
+	}
+
+	resp := apiv1.SuccessLoginResponse{
+		AccessToken: toStrPointer(tokens.AccessToken),
+		User: &struct {
+			Email *openapi_types.Email `json:"email,omitempty"`
+			Id    *string              `json:"id,omitempty"`
+			Name  *string              `json:"name,omitempty"`
+		}{
+			Id:    toStrPointer(user.ID),
+			Name:  toStrPointer(user.Name),
+			Email: toEmailPointer(user.Email),
+		},
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}
+
+// GetMe handles retrieval of current authenticated user details
+func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	principal, ok := security.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, httpx.ErrUnauthorized)
+		return
+	}
+
+	user, err := h.service.GetMe(r.Context(), principal.UserID.String())
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrUserNotFound):
+			httpx.WriteError(w, r, httpx.ErrUnauthorized)
+		default:
+			httpx.WriteError(w, r, httpx.ErrInternal)
+		}
+		return
+	}
+
+	resp := apiv1.SuccessGetMeResponse{
+		Id:    toStrPointer(user.ID),
+		Name:  toStrPointer(user.Name),
+		Email: toEmailPointer(user.Email),
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

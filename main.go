@@ -65,7 +65,7 @@ func main() {
 	jwtService := security.NewJWTService(jwtVerifier)
 	securityMiddleware := security.NewMiddleware(jwtService, policyResolver, redisClient)
 
-	server := handler.NewServer(DB, redisClient, rmq)
+	server := handler.NewServer(DB, redisClient, rmq, env.JWT)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints (Docs & Welcome root)

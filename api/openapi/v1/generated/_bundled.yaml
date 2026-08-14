@@ -1,5 +1,11 @@
 components:
     schemas:
+        BadRequestResponse:
+            properties:
+                error:
+                    example: invalid request payload
+                    type: string
+            type: object
         InternalErrorGetMeResponse:
             properties:
                 error:
@@ -14,12 +20,42 @@ components:
                     example: Internal server error
                     type: string
             type: object
+        LoginRequest:
+            properties:
+                email:
+                    example: john@example.com
+                    format: email
+                    type: string
+                password:
+                    example: secretpassword123
+                    type: string
+            required:
+                - email
+                - password
+            type: object
         NotFoundGetStatusResponse:
             properties:
                 error:
                     description: Error message
                     example: Not Found
                     type: string
+            type: object
+        RegisterRequest:
+            properties:
+                email:
+                    example: john@example.com
+                    format: email
+                    type: string
+                name:
+                    example: John Doe
+                    type: string
+                password:
+                    example: secretpassword123
+                    type: string
+            required:
+                - name
+                - email
+                - password
             type: object
         SuccessGetMeResponse:
             properties:
@@ -52,6 +88,38 @@ components:
                     format: date-time
                     type: string
             type: object
+        SuccessLoginResponse:
+            properties:
+                accessToken:
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    type: string
+                user:
+                    properties:
+                        email:
+                            example: john@example.com
+                            format: email
+                            type: string
+                        id:
+                            example: "123"
+                            type: string
+                        name:
+                            example: John Doe
+                            type: string
+                    type: object
+            type: object
+        SuccessRegisterResponse:
+            properties:
+                email:
+                    example: john@example.com
+                    format: email
+                    type: string
+                id:
+                    example: "123"
+                    type: string
+                name:
+                    example: John Doe
+                    type: string
+            type: object
         UnauthorizedGetMeResponse:
             properties:
                 error:
@@ -72,6 +140,38 @@ info:
     version: 1.0.1
 openapi: 3.1.0
 paths:
+    /auth/login:
+        post:
+            operationId: postAuthLogin
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/LoginRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessLoginResponse'
+                    description: User successfully logged in
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedGetMeResponse'
+                    description: Unauthorized
+            summary: Authenticate user and retrieve access token
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/me:
         get:
             operationId: getMe
@@ -97,6 +197,37 @@ paths:
             security:
                 - BearerAuth: []
             summary: Get current authenticated user
+            tags:
+                - Auth
+            x-api-version: v1
+            x-audit: true
+            x-permission:
+                action: read
+                module: auth
+                resource: me
+    /auth/register:
+        post:
+            operationId: postAuthRegister
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RegisterRequest'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessRegisterResponse'
+                    description: User successfully registered
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+            summary: Register a new user
             tags:
                 - Auth
             x-api-version: v1

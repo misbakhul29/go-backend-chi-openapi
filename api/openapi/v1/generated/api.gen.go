@@ -37,6 +37,11 @@ func (e SuccessGetStatusResponseStatus) Valid() bool {
 	}
 }
 
+// BadRequestResponse defines model for BadRequestResponse.
+type BadRequestResponse struct {
+	Error *string `json:"error,omitempty"`
+}
+
 // InternalErrorGetMeResponse defines model for InternalErrorGetMeResponse.
 type InternalErrorGetMeResponse struct {
 	// Error Error message
@@ -49,10 +54,23 @@ type InternalErrorGetStatusResponse struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
 // NotFoundGetStatusResponse defines model for NotFoundGetStatusResponse.
 type NotFoundGetStatusResponse struct {
 	// Error Error message
 	Error *string `json:"error,omitempty"`
+}
+
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Name     string              `json:"name"`
+	Password string              `json:"password"`
 }
 
 // SuccessGetMeResponse defines model for SuccessGetMeResponse.
@@ -79,17 +97,46 @@ type SuccessGetStatusResponse struct {
 // SuccessGetStatusResponseStatus Status indicator
 type SuccessGetStatusResponseStatus string
 
+// SuccessLoginResponse defines model for SuccessLoginResponse.
+type SuccessLoginResponse struct {
+	AccessToken *string `json:"accessToken,omitempty"`
+	User        *struct {
+		Email *openapi_types.Email `json:"email,omitempty"`
+		Id    *string              `json:"id,omitempty"`
+		Name  *string              `json:"name,omitempty"`
+	} `json:"user,omitempty"`
+}
+
+// SuccessRegisterResponse defines model for SuccessRegisterResponse.
+type SuccessRegisterResponse struct {
+	Email *openapi_types.Email `json:"email,omitempty"`
+	Id    *string              `json:"id,omitempty"`
+	Name  *string              `json:"name,omitempty"`
+}
+
 // UnauthorizedGetMeResponse defines model for UnauthorizedGetMeResponse.
 type UnauthorizedGetMeResponse struct {
 	// Error Error message
 	Error *string `json:"error,omitempty"`
 }
 
+// PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
+type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostAuthRegisterJSONRequestBody defines body for PostAuthRegister for application/json ContentType.
+type PostAuthRegisterJSONRequestBody = RegisterRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// PostAuthLogin Authenticate user and retrieve access token
+	// (POST /auth/login)
+	PostAuthLogin(w http.ResponseWriter, r *http.Request)
 	// GetMe Get current authenticated user
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// PostAuthRegister Register a new user
+	// (POST /auth/register)
+	PostAuthRegister(w http.ResponseWriter, r *http.Request)
 	// GetStatus Get API Status
 	// (GET /status)
 	GetStatus(w http.ResponseWriter, r *http.Request)
@@ -99,9 +146,21 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// PostAuthLogin Authenticate user and retrieve access token
+// (POST /auth/login)
+func (_ Unimplemented) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetMe Get current authenticated user
 // (GET /auth/me)
 func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthRegister Register a new user
+// (POST /auth/register)
+func (_ Unimplemented) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -120,11 +179,39 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// PostAuthLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetMe operation middleware
 func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthRegister operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthRegister(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -262,7 +349,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetMe)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/register", wrapper.PostAuthRegister)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/status", wrapper.GetStatus)
@@ -276,19 +369,25 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

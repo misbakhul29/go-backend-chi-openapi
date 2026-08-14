@@ -1,23 +1,20 @@
 # go-backend-chi-openapi
 
-A production-ready, clean architecture Go backend template powered by Chi Router and OpenAPI (oapi-codegen), featuring a declarative spec-driven security & middleware engine.
+A production-ready, clean architecture Go backend template powered by Chi Router and OpenAPI (oapi-codegen), featuring a declarative spec-driven security & middleware engine defined entirely in Go.
 
 ---
 
 ## 🚀 Key Architectural Pillars
 
-### 1. Spec-First & Type-Safe Code Generation
-The API contract is defined in modular OpenAPI 3.1.0 specifications under `api/openapi/v1/`. We use `oapi-codegen` to automatically compile this contract into type-safe Go server routes, request/response models, and interfaces (`api.gen.go`). This guarantees that your code always aligns with the documentation.
+### 1. Go-First & Type-Safe Code Generation
+The API contract is defined programmatically in Go under [api/openapi/v1/](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/api/openapi/v1/). We use a Go generator tool [cmd/gen-api/v1](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/cmd/gen-api/v1/main.go) to compile this programmatically-defined contract into a single bundled specification (`_bundled.yaml`) and use `oapi-codegen` to automatically generate type-safe Go server routes, request/response models, and interfaces (`api.gen.go`). This eliminates Node.js dependencies (like Redocly) and keeps everything in native Go.
 
 ### 2. Spec-Driven Security & Authorization Engine (`pkg/security`)
-Instead of manually hardcoding and wiring authentication or permission middlewares for every handler, the security system resolves policies **dynamically at runtime directly from the OpenAPI spec** using the `kin-openapi` router:
-- **Automatic Auth Validation**: If an operation specifies `security: - BearerAuth: []` in the OpenAPI YAML, the middleware automatically requires and validates a Bearer token.
-- **Custom Declarative Extensions**: Handlers can read custom OpenAPI extension properties defined directly inside the OpenAPI operation spec, such as:
-  - `x-permission`: Map module, resource, and action (e.g. `auth:me:read`) for RBAC checks.
-  - `x-data-scopes`: Finely-grained scopes (e.g. `user:read`).
-  - `x-audit`: Declarative audit logging policy (e.g. `x-audit: true`). When enabled, the `Security` middleware dynamically catches the request, writes an audit record to the console/log-aggregator, and forwards an audit verification flag in the context to the handler.
-  - `x-step-up-mfa`: Step-Up multi-factor authentication check requirements.
-- **Unified Middleware**: A single middleware (`securityMiddleware.Security`) is applied globally to the API route group. It extracts request details, finds the corresponding route in Swagger, validates credentials, and injects a unified identity `Principal` into the request context.
+Authentication, rate limiting, and permission policies are resolved **dynamically at runtime directly from the OpenAPI spec** using the `kin-openapi` router:
+- **Automatic Auth Validation**: If an operation specifies `security: - BearerAuth: []` in the OpenAPI specification, the middleware automatically requires and validates a Bearer token.
+- **RateLimit Middleware (`x-rate-limit`)**: Automatically applies request rate-limiting based on the client IP and route's operation ID. It supports a custom `x-rate-limit` spec parameter (e.g. limit: 10, window: 60) and falls back to a global default of 60 requests per minute.
+- **Audit Middleware (`x-audit`)**: Monitors crucial endpoints marked with `x-audit: true`. When accessed, it automatically produces a structured JSON audit log via `observer.Log` containing user ID, tenant ID, and source IP context.
+- **RBAC Check (`x-permission`)**: Protects routes by validating that the authenticated user possesses the permission defined in the route metadata (e.g. `x-permission: { module: "auth", resource: "me", action: "read" }` translates to the required permission string `auth:me:read`). All system permissions are defined centrally in [permissions.go](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/pkg/security/permissions.go) for easy configuration.
 
 ---
 
@@ -27,25 +24,26 @@ Instead of manually hardcoding and wiring authentication or permission middlewar
 ├── api/
 │   └── openapi/
 │       └── v1/
-│           ├── components/     # Reusable request/response components
-│           ├── paths/          # Modular Swagger endpoint routes
-│           ├── schemas.yaml    # Reusable Swagger schema definitions
-│           ├── openapi.yaml    # Swagger entrypoint specification
-│           ├── _bundled.yaml   # Bundled specification (for Swagger UI)
+│           ├── paths/          # Modular Go OpenAPI endpoint paths
+│           │   ├── auth/       # Auth routes (path.go) & schemas (schema.go)
+│           │   └── status/     # Status routes (path.go) & schemas (schema.go)
+│           ├── openapi.go      # Base OpenAPI contract builder
 │           └── generated/
+│               ├── _bundled.yaml # Generated bundled specification (for Swagger UI)
 │               └── api.gen.go  # Code generated by oapi-codegen
 ├── cmd/                        # App entrypoints
+│   └── gen-api/
+│       └── v1/                 # Script to compile spec and generate code
 ├── config/                     # Configuration and env loader (godotenv)
 ├── internal/                   # Private domain modules
 │   ├── auth/                   # Authentication domain handlers & business logic
 │   ├── health/                 # Health check domain handlers
 │   └── server/                 # Orchestrates/embeds sub-handlers to implement ServerInterface
 ├── pkg/                        # Reusable public packages
-│   ├── httpx/                  # Custom HTTP response utilities
-│   ├── observer/               # Chi Logger and Recoverer wrapper middlewares
+│   ├── httpx/                  # Custom HTTP response utilities (WriteError)
+│   ├── observer/               # Recovery middlewares and structured slog logger
 │   ├── pointerx/               # Type-safe generic helpers for pointer conversions
 │   └── security/               # The Spec-Driven Security & Authorization engine
-├── scripts/                    # Helper tooling scripts (e.g. genapi.sh for code gen)
 ├── main.go                     # Application wiring and server entrypoint
 └── go.mod                      # Dependency management
 ```
@@ -61,7 +59,7 @@ sequenceDiagram
     Note over Middleware: Resolve route & operation in loaded Swagger Spec
     
     rect rgb(240, 240, 240)
-    Note over Middleware: Parse x-extensions (x-permission, x-audit, etc.)
+    Note over Middleware: Parse x-extensions (x-rate-limit, x-audit, etc.)
     end
     
     alt Security Required (scheme: Bearer)
@@ -87,14 +85,12 @@ sequenceDiagram
 ## 🛠️ How to Run & Develop
 
 ### 1. Prerequisites
-- Go 1.26.5+ Installed
-- Node.js (for redocly spec bundling)
+- Go 1.26.6+ Installed
 
 ### 2. Generate OpenAPI Server Code
-Whenever you modify files in `api/openapi/v1/`, run the generation script to bundle the spec and regenerate `api.gen.go`:
+Whenever you modify files in `api/openapi/v1/`, run the generator command to compile the spec and regenerate `api.gen.go`:
 ```bash
-chmod +x ./scripts/genapi.sh
-./scripts/genapi.sh
+go run cmd/gen-api/v1/main.go
 ```
 
 ### 3. Run the Server
@@ -127,78 +123,65 @@ curl -X 'GET' 'http://localhost:8000/api/v1/status' -H 'accept: application/json
 ```bash
 curl -X 'GET' 'http://localhost:8000/api/v1/auth/me' -H 'accept: application/json'
 ```
-Response:
+Response (structured via [response.go](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/pkg/httpx/response.go)):
 ```json
 {
-  "type": "about:blank",
-  "title": "UNAUTHORIZED",
-  "status": "401"
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Unauthorized access",
+    "request_id": "req-uuid"
+  }
 }
 ```
 
 ### 4. Secure Endpoint (Get Me) - Successful Request (HTTP 200)
+To request using a mock token that contains the required `auth:me:read` permission:
 ```bash
 curl -X 'GET' \
   'http://localhost:8000/api/v1/auth/me' \
   -H 'accept: application/json' \
-  -H 'Authorization: Bearer my-secret-token'
+  -H 'Authorization: Bearer mock-user-token'
 ```
 Response:
 ```json
 {
-  "id": "00000000-0000-0000-0000-000000000001",
+  "id": "00000000-0000-0000-0000-000000000002",
   "name": "John Doe",
   "email": "jhon.dow@mail.com"
 }
 ```
 
-### 5. Middleware & Security Verification Check Endpoints
-We have check endpoints mapped with specific OpenAPI security extensions (`x-permission`, `x-data-scopes`, `x-audit`, and `x-step-up-mfa`) to verify their runtime execution:
+### 5. Secure Endpoint (Get Me) - Forbidden Request (HTTP 403)
+To request using a mock token that does NOT contain the required `auth:me:read` permission:
+```bash
+curl -X 'GET' \
+  'http://localhost:8000/api/v1/auth/me' \
+  -H 'accept: application/json' \
+  -H 'Authorization: Bearer mock-no-perm-token'
+```
+Response:
+```json
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Insufficient permissions",
+    "request_id": "req-uuid"
+  }
+}
+```
 
-#### RBAC Permission Verification (`x-permission`)
-- **Passed (HTTP 200)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/rbac' \
-    -H 'Authorization: Bearer my-secret-token'
-  ```
-- **Forbidden (HTTP 403)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/rbac' \
-    -H 'Authorization: Bearer no-permission-token'
-  ```
-
-#### Data Scopes Verification (`x-data-scopes`)
-- **Passed (HTTP 200)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/scopes' \
-    -H 'Authorization: Bearer my-secret-token'
-  ```
-- **Forbidden (HTTP 403)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/scopes' \
-    -H 'Authorization: Bearer no-permission-token'
-  ```
-
-#### Step-Up MFA Verification (`x-step-up-mfa`)
-- **Passed (HTTP 200)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/mfa' \
-    -H 'Authorization: Bearer mfa-token'
-  ```
-- **Forbidden (HTTP 403)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/mfa' \
-    -H 'Authorization: Bearer my-secret-token'
-  ```
-
-#### Audit Logging Verification (`x-audit`)
-- **Passed (HTTP 200 with audit tag)**:
-  ```bash
-  curl -X 'GET' 'http://localhost:8000/api/v1/check/audit' \
-    -H 'Authorization: Bearer my-secret-token'
-  ```
-  Check the server console for the generated log:
-  ```text
-  [AUDIT] Authenticated endpoint accessed: GET /api/v1/check/audit (User: 00000000-0000-0000-0000-000000000001, Operation: CheckAudit)
-  ```
-
+### 5. Audit Logging Verification
+When calling `/auth/me` (which has `x-audit: true`), the server will output a structured JSON log context to stdout:
+```json
+{
+  "time": "2026-08-14T22:37:23.000+07:00",
+  "level": "INFO",
+  "msg": "Crucial endpoint accessed",
+  "operation_id": "getMe",
+  "method": "GET",
+  "path": "/api/v1/auth/me",
+  "user_id": "00000000-0000-0000-0000-000000000001",
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "remote_ip": "127.0.0.1"
+}
+```

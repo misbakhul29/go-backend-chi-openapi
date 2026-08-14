@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/internal/auth"
 	"github.com/misbakhul29/backend-framework/internal/health"
 	"github.com/rabbitmq/amqp091-go"
@@ -14,9 +15,12 @@ type Server struct {
 	*auth.AuthHandler
 }
 
-func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection) *Server {
+func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, jwtCfg config.JWT) *Server {
+	authRepo := auth.NewRepository(db)
+	authService := auth.NewService(authRepo, db, jwtCfg)
+
 	return &Server{
 		HealthHandler: health.NewHandler(),
-		AuthHandler:   auth.NewHandler(),
+		AuthHandler:   auth.NewHandler(authService),
 	}
 }

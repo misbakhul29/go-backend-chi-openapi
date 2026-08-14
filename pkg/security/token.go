@@ -31,11 +31,10 @@ type accessClaims struct {
 	TenantID    string   `json:"tid"`
 	AMR         []string `json:"amr"`
 	Permissions []string `json:"permissions,omitempty"`
-	Scopes      []string `json:"scopes,omitempty"`
 }
 
 // IssueTokens creates a signed JWT access token and an opaque refresh token.
-func IssueTokens(cfg TokenConfig, userID, tenantID string, amr []string) (*IssuedTokens, error) {
+func IssueTokens(cfg TokenConfig, userID, tenantID string, amr []string, permissions []string) (*IssuedTokens, error) {
 	if cfg.AccessTTL == 0 {
 		cfg.AccessTTL = 15 * time.Minute
 	}
@@ -53,8 +52,9 @@ func IssueTokens(cfg TokenConfig, userID, tenantID string, amr []string) (*Issue
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(cfg.AccessTTL)),
 		},
-		TenantID: tenantID,
-		AMR:      amr,
+		TenantID:    tenantID,
+		AMR:         amr,
+		Permissions: permissions,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -65,7 +65,11 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		statusCode = dbErr.HTTPStatus
 		code = dbErr.Code
 		message = dbErr.Localize(lang)
-		// We could add database details here if needed in non-prod, but standard spec says keep safe
+	} else if domErr, ok := errors.AsType[*errs.DomainError](err); ok {
+		statusCode = mapDomainErrorCode(domErr.Code)
+		code = domErr.Code
+		message = domErr.Message
+		details = domErr.Details
 	} else if apiErr, ok := errors.AsType[APIError](err); ok {
 		statusCode = apiErr.HTTPStatusCode()
 		code = apiErr.APIErrorCode()
@@ -120,4 +124,23 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 
 	WriteJSON(w, statusCode, resp)
+}
+
+func mapDomainErrorCode(code string) int {
+	switch errs.ErrorCode(code) {
+	case errs.ErrCodeBadRequest, errs.ErrCodeValidation:
+		return http.StatusBadRequest
+	case errs.ErrCodeUnauthorized, errs.ErrCodeInvalidCredentials:
+		return http.StatusUnauthorized
+	case errs.ErrCodeForbidden:
+		return http.StatusForbidden
+	case errs.ErrCodeNotFound:
+		return http.StatusNotFound
+	case errs.ErrCodeConflict:
+		return http.StatusConflict
+	case errs.ErrCodeRateLimitExceeded:
+		return http.StatusTooManyRequests
+	default:
+		return http.StatusInternalServerError
+	}
 }
