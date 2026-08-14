@@ -137,6 +137,41 @@ func RegisterPaths(paths *openapi3.Paths) {
 		},
 	})
 
+	// /auth/logout endpoint
+	logoutResponses := openapi3.NewResponses()
+	logoutResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("User successfully logged out"),
+		},
+	})
+	logoutResponses.Set("401", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Unauthorized"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/UnauthorizedGetMeResponse", nil),
+				},
+			},
+		},
+	})
+
+	paths.Set("/auth/logout", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postAuthLogout",
+			Summary:     "Log out current user and revoke active session",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			Security: &openapi3.SecurityRequirements{
+				openapi3.SecurityRequirement{
+					"BearerAuth": []string{},
+				},
+			},
+			Responses: logoutResponses,
+		},
+	})
+
 	// /auth/me endpoint
 	paths.Set("/auth/me", &openapi3.PathItem{
 		Get: &openapi3.Operation{

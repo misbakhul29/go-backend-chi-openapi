@@ -122,3 +122,20 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
+
+// PostAuthLogout handles user logout and revokes active session
+func (h *AuthHandler) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+	principal, ok := security.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, httpx.ErrUnauthorized)
+		return
+	}
+
+	err := h.service.Logout(r.Context(), principal.SessionID.String())
+	if err != nil {
+		httpx.WriteError(w, r, httpx.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

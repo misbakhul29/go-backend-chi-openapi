@@ -26,6 +26,7 @@ type AuthService interface {
 	Register(ctx context.Context, name, email, password string) (*models.User, error)
 	Login(ctx context.Context, email, password string) (*models.User, *security.IssuedTokens, error)
 	GetMe(ctx context.Context, userID string) (*models.User, error)
+	Logout(ctx context.Context, sessionID string) error
 }
 
 type AuthServiceImpl struct {
@@ -44,7 +45,7 @@ func NewService(repo AuthRepository, gormDB *gorm.DB, jwtCfg config.JWT) *AuthSe
 
 func (s *AuthServiceImpl) Register(ctx context.Context, name, email, password string) (*models.User, error) {
 	// Check if user already exists
-	_, err := s.repo.GetUserByEmail(ctx, nil, email)
+	_, err := s.repo.GetUserByEmail(ctx, email)
 	if err == nil {
 		return nil, ErrUserAlreadyExists
 	}
@@ -70,9 +71,9 @@ func (s *AuthServiceImpl) Register(ctx context.Context, name, email, password st
 		UpdatedAt:     now,
 	}
 
-	// Use WithTx to execute transactions safely
-	err = db.WithTx(ctx, s.gormDB, func(tx *gorm.DB) error {
-		if err := s.repo.CreateUser(ctx, tx, user); err != nil {
+	// Propagate transaction-bound context txCtx to repository operations
+	err = db.WithTx(ctx, s.gormDB, func(txCtx context.Context, tx *gorm.DB) error {
+		if err := s.repo.CreateUser(txCtx, user); err != nil {
 			return err
 		}
 
@@ -85,7 +86,7 @@ func (s *AuthServiceImpl) Register(ctx context.Context, name, email, password st
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}
-		if err := s.repo.CreateAccount(ctx, tx, account); err != nil {
+		if err := s.repo.CreateAccount(txCtx, account); err != nil {
 			return err
 		}
 
@@ -100,7 +101,7 @@ func (s *AuthServiceImpl) Register(ctx context.Context, name, email, password st
 }
 
 func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*models.User, *security.IssuedTokens, error) {
-	user, err := s.repo.GetUserByEmail(ctx, nil, email)
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, ErrInvalidCredentials
@@ -108,7 +109,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*m
 		return nil, nil, ErrInternalServer
 	}
 
-	account, err := s.repo.GetAccountByUserIDAndProvider(ctx, nil, user.ID, "credentials")
+	account, err := s.repo.GetAccountByUserIDAndProvider(ctx, user.ID, "credentials")
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, ErrInvalidCredentials
@@ -142,7 +143,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*m
 	// Store Session record in DB
 	now := time.Now()
 	session := &models.Session{
-		ID:        uuid.NewString(),
+		ID:        issued.JTI,
 		ExpiresAt: now.Add(tokenConfig.RefreshTTL),
 		Token:     issued.RefreshToken,
 		UserID:    user.ID,
@@ -150,7 +151,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*m
 		UpdatedAt: now,
 	}
 
-	if err := s.repo.CreateSession(ctx, nil, session); err != nil {
+	if err := s.repo.CreateSession(ctx, session); err != nil {
 		return nil, nil, ErrInternalServer
 	}
 
@@ -158,7 +159,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*m
 }
 
 func (s *AuthServiceImpl) GetMe(ctx context.Context, userID string) (*models.User, error) {
-	user, err := s.repo.GetUserByID(ctx, nil, userID)
+	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -166,4 +167,12 @@ func (s *AuthServiceImpl) GetMe(ctx context.Context, userID string) (*models.Use
 		return nil, ErrInternalServer
 	}
 	return user, nil
+}
+
+func (s *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {
+	err := s.repo.DeleteSession(ctx, sessionID)
+	if err != nil {
+		return ErrInternalServer
+	}
+	return nil
 }

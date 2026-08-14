@@ -131,6 +131,9 @@ type ServerInterface interface {
 	// PostAuthLogin Authenticate user and retrieve access token
 	// (POST /auth/login)
 	PostAuthLogin(w http.ResponseWriter, r *http.Request)
+	// PostAuthLogout Log out current user and revoke active session
+	// (POST /auth/logout)
+	PostAuthLogout(w http.ResponseWriter, r *http.Request)
 	// GetMe Get current authenticated user
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -149,6 +152,12 @@ type Unimplemented struct{}
 // PostAuthLogin Authenticate user and retrieve access token
 // (POST /auth/login)
 func (_ Unimplemented) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthLogout Log out current user and revoke active session
+// (POST /auth/logout)
+func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -184,6 +193,20 @@ func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAuthLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthLogout operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthLogout(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -352,6 +375,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/logout", wrapper.PostAuthLogout)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetMe)
 	})
 	r.Group(func(r chi.Router) {
@@ -369,25 +395,26 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"mjR7KJshVx1l05rr8n1aMt+sup39GwAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

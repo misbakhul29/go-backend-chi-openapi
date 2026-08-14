@@ -172,6 +172,24 @@ paths:
             tags:
                 - Auth
             x-api-version: v1
+    /auth/logout:
+        post:
+            operationId: postAuthLogout
+            responses:
+                "200":
+                    description: User successfully logged out
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedGetMeResponse'
+                    description: Unauthorized
+            security:
+                - BearerAuth: []
+            summary: Log out current user and revoke active session
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/me:
         get:
             operationId: getMe

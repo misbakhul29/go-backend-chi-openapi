@@ -35,9 +35,9 @@ func GetUserID(ctx context.Context) string {
 	return ""
 }
 
-func WithTx(ctx context.Context, db *gorm.DB, fn func(tx *gorm.DB) error) error {
+func WithTx(ctx context.Context, db *gorm.DB, fn func(txCtx context.Context, tx *gorm.DB) error) error {
 	if existingTx, ok := ctx.Value(TxContextKey).(*gorm.DB); ok && existingTx != nil {
-		return fn(existingTx)
+		return fn(ctx, existingTx)
 	}
 
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -55,6 +55,7 @@ func WithTx(ctx context.Context, db *gorm.DB, fn func(tx *gorm.DB) error) error 
 			}
 		}
 
-		return fn(tx)
+		txCtx := context.WithValue(ctx, TxContextKey, tx)
+		return fn(txCtx, tx)
 	})
 }
