@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/misbakhul29/backend-framework/pkg/errs"
+	"github.com/misbakhul29/backend-framework/pkg/httpx"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"github.com/redis/go-redis/v9"
 )
@@ -31,11 +31,7 @@ func (m *Middleware) Security(next http.Handler) http.Handler {
 		policy, ok := m.policyResolver.Resolve(r)
 
 		if !ok {
-			writeProblem(
-				w,
-				http.StatusInternalServerError,
-				"SECURITY_POLICY_MISSING",
-			)
+			httpx.WriteError(w, r, httpx.ErrInternal)
 			return
 		}
 
@@ -48,11 +44,7 @@ func (m *Middleware) Security(next http.Handler) http.Handler {
 		case SecurityBearer:
 			m.handleBearerAuth(next, w, r, policy)
 		default:
-			writeProblem(
-				w,
-				http.StatusInternalServerError,
-				"UNSUPPORTED_SECURITY_SCHEME",
-			)
+			httpx.WriteError(w, r, httpx.ErrInternal)
 			return
 		}
 	})
@@ -62,11 +54,7 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 	token, err := extractBearerToken(r.Header.Get("Authorization"))
 
 	if err != nil {
-		writeProblem(
-			w,
-			http.StatusUnauthorized,
-			"UNAUTHORIZED",
-		)
+		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
 	}
 
@@ -76,7 +64,7 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 	)
 
 	if err != nil {
-		writeProblem(w, http.StatusUnauthorized, "UNAUTHORIZED")
+		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
 	}
 
@@ -93,7 +81,7 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 			}
 		}
 		if !hasPerm {
-			writeProblem(w, http.StatusForbidden, "FORBIDDEN_INSUFFICIENT_PERMISSIONS")
+			httpx.WriteError(w, r, httpx.ErrForbidden)
 			return
 		}
 	}
@@ -113,7 +101,7 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 			}
 		}
 		if !hasScope {
-			writeProblem(w, http.StatusForbidden, "FORBIDDEN_INSUFFICIENT_SCOPES")
+			httpx.WriteError(w, r, httpx.ErrForbidden)
 			return
 		}
 	}
@@ -128,24 +116,12 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 			}
 		}
 		if !hasMFA {
-			writeProblem(w, http.StatusForbidden, "MFA_REQUIRED")
+			httpx.WriteError(w, r, httpx.ErrMfaRequired)
 			return
 		}
 	}
 
 	next.ServeHTTP(w, r)
-}
-
-func writeProblem(w http.ResponseWriter, status int, code string) {
-	w.Header().Set("Content-Type", "application/problem+json")
-
-	w.WriteHeader(status)
-
-	w.Write([]byte(`{
-		"type": "about:blank",
-		"title": "` + code + `",
-		"status": "` + strconv.Itoa(status) + `"
-	}`))
 }
 
 func (m *Middleware) RateLimit(next http.Handler) http.Handler {
@@ -193,7 +169,7 @@ func (m *Middleware) RateLimit(next http.Handler) http.Handler {
 
 		if count > int64(limit) {
 			w.Header().Set("Retry-After", strconv.Itoa(window))
-			writeProblem(w, http.StatusTooManyRequests, string(errs.ErrCodeRateLimitExceeded))
+			httpx.WriteError(w, r, httpx.ErrRateLimitExceeded)
 			return
 		}
 

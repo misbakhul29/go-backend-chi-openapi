@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/misbakhul29/backend-framework/config"
 )
 
 //go:embed swagger-ui.css
@@ -61,8 +62,8 @@ func UI() http.HandlerFunc {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Rakaloka HRIS API Documentation" />
-    <title>Rakaloka HRIS API Documentation</title>
+    <meta name="description" content="{{.Title}}" />
+    <title>{{.Title}}</title>
     <!-- Use relative paths so it resolves properly under any router group -->
     <link rel="stylesheet" href="swagger/swagger-ui.css" />
     <link rel="stylesheet" href="swagger/swagger-ui-custom.css" />
@@ -113,8 +114,16 @@ func UI() http.HandlerFunc {
 </html>`
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		appName := "Backend Framework"
+		if config.Cfg != nil && config.Cfg.APPName != "" {
+			appName = config.Cfg.APPName
+		}
+		title := appName + " API Documentation"
+
+		renderedHTML := strings.ReplaceAll(html, "{{.Title}}", title)
+
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(html))
+		w.Write([]byte(renderedHTML))
 	}
 }
