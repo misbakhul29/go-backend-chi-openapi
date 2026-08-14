@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/pkg/db/models"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
@@ -104,8 +105,10 @@ func Migration(db *gorm.DB, permissions []string) error {
 func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	var perms []models.Permission
 	for _, code := range permissions {
+		// Generate a stable UUID from the permission code string
+		permUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(code)).String()
 		p := models.Permission{
-			ID:        code,
+			ID:        permUUID,
 			Code:      code,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -120,7 +123,7 @@ func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	}
 
 	adminRole := models.Role{
-		ID:        "ADMIN",
+		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte("ADMIN")).String(),
 		Name:      "ADMIN",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -137,7 +140,7 @@ func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	}
 
 	memberRole := models.Role{
-		ID:        "MEMBER",
+		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte("MEMBER")).String(),
 		Name:      "MEMBER",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
