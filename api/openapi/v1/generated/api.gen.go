@@ -107,6 +107,11 @@ type SuccessLoginResponse struct {
 	} `json:"user,omitempty"`
 }
 
+// SuccessLogoutResponse defines model for SuccessLogoutResponse.
+type SuccessLogoutResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // SuccessRegisterResponse defines model for SuccessRegisterResponse.
 type SuccessRegisterResponse struct {
 	Email *openapi_types.Email `json:"email,omitempty"`
@@ -395,26 +400,26 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"1FhdT+M4FP0r1t2V9iU0DTBoN08Lww4KmgFEYbVaxINJLolpYmdtp0xn1P++sp20DQ00oHaXkfqQOvb1",
-	"8bnnfjjfIRZFKThyrSD8DirOsKD28Ygml/hPhUpfoioFV2hGSylKlJqhnYNSCmkfvtKizBFCYHxCc5YQ",
-	"6daSkk5zQRPwQE9LM0FpyXgKs9l8RNw9YKxh5kHENUpO8z+M3RPUX7DH3gmqWLJSM8EhBLuUFKgUTRG8",
-	"JWSNcaJQTlASZ+BNuEaa6kq9D2yfRcp47akOJAVledtDDyLjv9d/B7EowIN7IQuqIaynr+zrQUmVehQy",
-	"aZtSGEvUzbtgd68TspECk5hAeDPfYG7vtuNIZ0J/EhVPtsH0mdDEGu/H7iWmTGmUWyeY0wLbZk5Fxsmx",
-	"wG26w+7q9fPKqIpjVGpdWDZ8tB1yrVD+ooh9S2iSSFSq5Zc3kcaS7p1IdNwy3knFgvNOqPdVnpOGnx5O",
-	"mb1I2TodK/t+FYxbRxhPWEy1zQnIq8L4TozBg4IyrpFTHqNx2gKofbtyYs0KVJoW5epO0eic/HowDMh8",
-	"DhH3RGdIZIN62f7ucHdvJxju7B5cBcNwaH5/L/ssoRp3jKlXMVUns+dYonbSlRgjbysfp6fZ3UnMztlp",
-	"dP0tCs5YpCJ++SH+GB1E4/KvPz+e/jYYDLooqRTK7YU1exKia5T4NqG9QOgif60N2B/hpB5cc1rpTEj2",
-	"DZNNdwjLtnvyrjCuJNPTkWmc3LZHSCXKw0pn847KLLqzwwuzmdYlzIwNxu/FKszzEvnhRURGjzRNUZJj",
-	"EZuMmbMY69M6KuFLdAUeVDKvjarQ90WJXIlKxjgQMvXrRco3c20a0PbARzQeI0/IJ0kLfBRyTA4vIvBg",
-	"glI5FMFgOAjMEmORlgxC2BsEg6EtFjqzB/YNa35uQtc6Qbg6aVxBzWGiBEK4EEobTmyEg6tCqPSRSKZm",
-	"cixMGrPraFnmJtkxwf0HJfiiLzVPP0u8hxB+8heNq193rX6rFZq1a52WFdoBpxYLfHc43NjenQnMYugo",
-	"T8pNNiVmSnKRppgQxg3N+xuE1NHBdwA6ogmZc2YABBsD8HysdhGzHHw2tKqioHIKIRjdINcGBBKTrwnl",
-	"5oahJcMJElcViLZlwQNNU2Xqo43AWw++7tCS7SwkPQms+blqRaV7ydbM6xZQTw8bA++L4Tp5QXjTTls3",
-	"t7PbZQd8FqlBT+JKSuR62QcTMTYe0GyCRKGyHL/SB64gpNhBvz0TbD9s13I3WvZno7zEEWHz9/txrAcf",
-	"NkjQC1fyDiTd99hXae0EFzqjS4HvyO6nLTtYJUy7vG/+ligL5uRpG8kasET7baIQSWUrotnR6c1WTwih",
-	"qA/qtCrrfmp9xmg6ry3VuqcX017lLth03Ky0l70qXkOiU+v/XPJalaY5D6GE4+MrFGcVsrjEPZfM3HXu",
-	"v0loT66cHTyY9pIpkiHNdTZ1Cb3ivO7U94f7G0P1/BedDliLTzRbzmXrofTKZyvpy7btjacb8dQDz8nH",
-	"mjR7KJshVx1l05rr8n1aMt+sup39GwAA//8=",
+	"1FhRT+M4EP4r1txJ9xKahmXRXZ4OllsUtAuIwul0iAeTDIlpYudsp2x31f9+sp20DU1pi1qOk3goiT3+",
+	"/H3jb8b5AbEoSsGRawXhD1BxhgW1P49pcoX/VKj0FapScIXmaSlFiVIztGNQSiHtj2+0KHOEEBgf0Zwl",
+	"RLq5pKTjXNAEPNDj0gxQWjKewmQyfSLuHzHWMPEg4holp/kfJu4p6q+4xtoJqliyUjPBIQQ7lRSoFE0R",
+	"vDlkTXCiUI5QEhfgVbgGmupKvQ9sX0TKeK1UB5KCsryt0KPI+O/1v71YFODBg5AF1RDWwxfW9aCkSj0J",
+	"mbRDKYwl6uZdsP+hE7JJBSYxgfB2usA03l3Hls6F/iwqnuyC6XOhiQ2+HrtXmDKlUe6cYE4LbIc5Exkn",
+	"JwJ3KYdd1VtPlUEVx6jUqmPZ8NEW5Eah/EUR+5bQJJGoVEuXV5HGku6VSHTSCt5JxYzzTqgPVZ6Thp81",
+	"RJm8SNmqPFb2/SIYN48wnrCYausJyKvCaCeG4EFBGdfIKY/RiDYDat8u7FizApWmRbm4UjS4IL8e9gMy",
+	"HUPEA9EZEtmgno+/39//sBf09/YPr4N+2Dd/f89rllCNeybURkzVZraMJWoHXYsh8nbm4/gsuz+N2QU7",
+	"i26+R8E5i1TErz7Gn6LDaFj+9eens996vV4XJZVCubtjzZ4d0RWZ+LpEe5lQUb1QwRuLbPuIm2tOwJjk",
+	"Ik0xIaLSGyk5M86VTvF/oNiDG04rnQnJvmOy7dZkPvaagiuMK8n0eGA6NrfsMVKJ8qjS2bSVM5Pu7eNZ",
+	"2EzrEiYmBuMPYhHmRYn86DIigyeapijJiYiNVecsxnq3jkr4Gl2DB5XM66Aq9H1RIleikjH2hEz9epLy",
+	"zVjrP9pu+JjGQ+QJ+SxpgU9CDsnRZQQejFAqhyLo9XuBmWIi0pJBCB96Qa9vq5TO7IZ9w5qfG8+wIghX",
+	"oI0U1GwmSiCES6G04cRaC7jyh0ofi2RsBsfC+KedR8syNy7LBPcfleCzhtj8+lniA4Twkz/rmP26XfZb",
+	"PdikXWS1rNA+cNlige/3+1tbu9M5LYaOuth1shk3NB9sEVLH1aED0DFNyJQzAyDYGoDlZ7WLmPnDZ49W",
+	"VRRUjiEEkzfItQGBxBQKQrm52mjJcITElSOibT3yQNNUmcJsT+CdB9/2aMn2Zik9Cmz4adYaS10nbZ31",
+	"vkECzVeKTTLIAHxfCtbmCOFt2xZv7yZ38wJ/EalBT+JKSuR6XuORGBqFNRshUaishhtq7ApOih3y2j29",
+	"gaoruRvM69lkduKIsPXh/QjrwcctEvTCt4YOJN0X9I1y7RRneUbnjMWRvV5u2YdVwrSrK+bfEmXBXHra",
+	"DrkGLNF+dClEUtmKa1Z0+WarM4RQ1Bt1uSrrfm21IzWd3Y5q6fMb91rlNNj2uVloX9fyw4ZEl63/cUlt",
+	"VbJmP4QSjk8bZJzNkNntdJmZuXvq2xjas7t0Bw+mfWWKZEhznY2doVec1zeBg/7B1lAt/1TVAWv27WnH",
+	"XrYaylp+tmBf9lrQKN0kT/1gWfrYkGYNZR1yUShra+4W4dOS+WbW3eTfAAAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

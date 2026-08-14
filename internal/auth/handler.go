@@ -137,5 +137,9 @@ func (h *AuthHandler) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	resp := apiv1.SuccessLogoutResponse{
+		Message: toStrPointer("successfully logged out"),
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

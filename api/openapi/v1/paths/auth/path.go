@@ -142,6 +142,11 @@ func RegisterPaths(paths *openapi3.Paths) {
 	logoutResponses.Set("200", &openapi3.ResponseRef{
 		Value: &openapi3.Response{
 			Description: pointerToString("User successfully logged out"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessLogoutResponse", nil),
+				},
+			},
 		},
 	})
 	logoutResponses.Set("401", &openapi3.ResponseRef{

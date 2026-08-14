@@ -63,7 +63,7 @@ func main() {
 
 	jwtVerifier := security.NewJWTVerifier([]byte(env.JWT.Secret))
 	jwtService := security.NewJWTService(jwtVerifier)
-	securityMiddleware := security.NewMiddleware(jwtService, policyResolver, redisClient)
+	securityMiddleware := security.NewMiddleware(jwtService, policyResolver, redisClient, DB)
 
 	server := handler.NewServer(DB, redisClient, rmq, env.JWT)
 

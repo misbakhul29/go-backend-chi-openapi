@@ -10,19 +10,22 @@ import (
 	"github.com/misbakhul29/backend-framework/pkg/httpx"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 type Middleware struct {
 	jwtService     *JWTService
 	policyResolver *PolicyResolver
 	redisClient    *redis.Client
+	db             *gorm.DB
 }
 
-func NewMiddleware(jwtService *JWTService, policyResolver *PolicyResolver, redisClient *redis.Client) *Middleware {
+func NewMiddleware(jwtService *JWTService, policyResolver *PolicyResolver, redisClient *redis.Client, db *gorm.DB) *Middleware {
 	return &Middleware{
 		jwtService:     jwtService,
 		policyResolver: policyResolver,
 		redisClient:    redisClient,
+		db:             db,
 	}
 }
 
@@ -64,6 +67,14 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 	)
 
 	if err != nil {
+		httpx.WriteError(w, r, httpx.ErrUnauthorized)
+		return
+	}
+
+	// Verify that this session still exists and has not expired in GORM database
+	var count int64
+	err = m.db.Table("session").Where("id = ? AND expires_at > ?", principal.SessionID.String(), time.Now()).Count(&count).Error
+	if err != nil || count == 0 {
 		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
 	}
