@@ -27,6 +27,7 @@ type AuthService interface {
 	Login(ctx context.Context, email, password string) (*models.User, *security.IssuedTokens, error)
 	GetMe(ctx context.Context, userID string) (*models.User, error)
 	Logout(ctx context.Context, sessionID string) error
+	ChangeRole(ctx context.Context, targetUserID, roleName string) error
 }
 
 type AuthServiceImpl struct {
@@ -73,6 +74,13 @@ func (s *AuthServiceImpl) Register(ctx context.Context, name, email, password st
 
 	// Propagate transaction-bound context txCtx to repository operations
 	err = db.WithTx(ctx, s.gormDB, func(txCtx context.Context, tx *gorm.DB) error {
+		// Fetch ADMIN role
+		adminRole, err := s.repo.GetRoleByName(txCtx, "ADMIN")
+		if err != nil {
+			return err
+		}
+		user.Roles = []models.Role{*adminRole}
+
 		if err := s.repo.CreateUser(txCtx, user); err != nil {
 			return err
 		}
@@ -132,10 +140,13 @@ func (s *AuthServiceImpl) Login(ctx context.Context, email, password string) (*m
 		RefreshTTL: time.Duration(s.jwtCfg.RefreshTTL) * time.Second,
 	}
 
-	// Embed custom route permissions
-	permissions := []string{security.PermAuthMeRead}
+	// Fetch dynamic user permissions from GORM tables
+	perms, err := s.repo.GetUserPermissions(ctx, user.ID)
+	if err != nil {
+		return nil, nil, ErrInternalServer
+	}
 
-	issued, err := security.IssueTokens(tokenConfig, user.ID, user.ID, []string{"password"}, permissions)
+	issued, err := security.IssueTokens(tokenConfig, user.ID, user.ID, []string{"password"}, perms)
 	if err != nil {
 		return nil, nil, ErrInternalServer
 	}
@@ -174,5 +185,25 @@ func (s *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {
 	if err != nil {
 		return ErrInternalServer
 	}
+	return nil
+}
+
+func (s *AuthServiceImpl) ChangeRole(ctx context.Context, targetUserID, roleName string) error {
+	_, err := s.repo.GetUserByID(ctx, targetUserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return ErrInternalServer
+	}
+
+	err = s.repo.UpdateUserRole(ctx, targetUserID, roleName)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errs.NewDomainError(string(errs.ErrCodeBadRequest), "role not found", nil)
+		}
+		return ErrInternalServer
+	}
+
 	return nil
 }

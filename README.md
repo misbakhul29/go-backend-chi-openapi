@@ -7,14 +7,21 @@ A production-ready, clean architecture Go backend template powered by Chi Router
 ## 🚀 Key Architectural Pillars
 
 ### 1. Go-First & Type-Safe Code Generation
-The API contract is defined programmatically in Go under [api/openapi/v1/](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/api/openapi/v1/). We use a Go generator tool [cmd/gen-api/v1](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/cmd/gen-api/v1/main.go) to compile this programmatically-defined contract into a single bundled specification (`_bundled.yaml`) and use `oapi-codegen` to automatically generate type-safe Go server routes, request/response models, and interfaces (`api.gen.go`). This eliminates Node.js dependencies (like Redocly) and keeps everything in native Go.
+The API contract is defined programmatically in Go under [api/openapi/v1/](file:///api/openapi/v1/). We use a Go generator tool [cmd/gen-api/v1](file:///cmd/gen-api/v1/main.go) to compile this programmatically-defined contract into a single bundled specification (`_bundled.yaml`) and use `oapi-codegen` to automatically generate type-safe Go server routes, request/response models, and interfaces (`api.gen.go`). This eliminates Node.js dependencies (like Redocly) and keeps everything in native Go.
 
 ### 2. Spec-Driven Security & Authorization Engine (`pkg/security`)
 Authentication, rate limiting, and permission policies are resolved **dynamically at runtime directly from the OpenAPI spec** using the `kin-openapi` router:
 - **Automatic Auth Validation**: If an operation specifies `security: - BearerAuth: []` in the OpenAPI specification, the middleware automatically requires and validates a Bearer token.
+- **Stateful Session Check**: The middleware queries the GORM database to ensure the session associated with the JWT JTI is active and not expired. This ensures instant token revocation upon logout.
 - **RateLimit Middleware (`x-rate-limit`)**: Automatically applies request rate-limiting based on the client IP and route's operation ID. It supports a custom `x-rate-limit` spec parameter (e.g. limit: 10, window: 60) and falls back to a global default of 60 requests per minute.
 - **Audit Middleware (`x-audit`)**: Monitors crucial endpoints marked with `x-audit: true`. When accessed, it automatically produces a structured JSON audit log via `observer.Log` containing user ID, tenant ID, and source IP context.
-- **RBAC Check (`x-permission`)**: Protects routes by validating that the authenticated user possesses the permission defined in the route metadata (e.g. `x-permission: { module: "auth", resource: "me", action: "read" }` translates to the required permission string `auth:me:read`). All system permissions are defined centrally in [permissions.go](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/pkg/security/permissions.go) for easy configuration.
+- **RBAC Check (`x-permission`)**: Protects routes by validating that the authenticated user possesses the permission defined in the route metadata (e.g. `x-permission: { module: "auth", resource: "me", action: "read" }` translates to the required permission string `auth:me:read`). All system permissions are defined centrally in [permissions.go](file:///pkg/security/permissions.go) for easy configuration.
+
+### 3. Layered Domain Architecture (`internal/`)
+Each domain namespace is structured into distinct layers to enforce clean boundaries:
+- **Handler**: The HTTP interface layer. Decodes JSON requests, calls service layer methods, maps domain error structures to HTTP errors using `httpx.WriteError`, and serializes JSON outputs.
+- **Service**: Domain business logic layer. Implements business rules and returns structured `*errs.DomainError` instances. Interacts with database tables solely through the Repository interface. Uses `db.WithTx` to handle transactional database operations safely.
+- **Repository**: Database interface layer. Encapsulates GORM queries. Uses `db.WithTx` inside its methods to automatically inherit active transaction scopes from context or fallback to standard GORM sessions.
 
 ---
 
@@ -36,48 +43,19 @@ Authentication, rate limiting, and permission policies are resolved **dynamicall
 │       └── v1/                 # Script to compile spec and generate code
 ├── config/                     # Configuration and env loader (godotenv)
 ├── internal/                   # Private domain modules
-│   ├── auth/                   # Authentication domain handlers & business logic
+│   ├── auth/                   # Authentication domain Handler, Service, & Repository layers
 │   ├── health/                 # Health check domain handlers
 │   └── server/                 # Orchestrates/embeds sub-handlers to implement ServerInterface
 ├── pkg/                        # Reusable public packages
+│   ├── db/                     # GORM DB connection initialization & AutoMigrate
+│   │   ├── models/             # GORM Models (User, Session, Account, Verification)
+│   │   └── transaction.go      # Context-bound transaction WithTx engine
+│   ├── errs/                   # Predefined error codes and translations
 │   ├── httpx/                  # Custom HTTP response utilities (WriteError)
 │   ├── observer/               # Recovery middlewares and structured slog logger
-│   ├── pointerx/               # Type-safe generic helpers for pointer conversions
 │   └── security/               # The Spec-Driven Security & Authorization engine
 ├── main.go                     # Application wiring and server entrypoint
 └── go.mod                      # Dependency management
-```
-
----
-
-## 🛡️ Spec-Driven Security Flow
-
-```mermaid
-sequenceDiagram
-    Client->>Middleware: GET /api/v1/auth/me (Authorization: Bearer <token>)
-    activate Middleware
-    Note over Middleware: Resolve route & operation in loaded Swagger Spec
-    
-    rect rgb(240, 240, 240)
-    Note over Middleware: Parse x-extensions (x-rate-limit, x-audit, etc.)
-    end
-    
-    alt Security Required (scheme: Bearer)
-        Middleware->>JWTService: Verify token
-        activate JWTService
-        JWTService-->>Middleware: Return claims (UserID, TenantID, Roles, Scopes)
-        deactivate JWTService
-        Middleware->>Middleware: Create Principal & inject into Request Context
-    else Security Not Required
-        Note over Middleware: Bypass authentication validation
-    end
-
-    Middleware->>Handler: next.ServeHTTP(w, r)
-    activate Handler
-    Note over Handler: principal, _ := security.PrincipalFromContext(ctx)
-    Handler-->>Client: HTTP 200 { "id": "uuid", "name": "John Doe", ... }
-    deactivate Handler
-    deactivate Middleware
 ```
 
 ---
@@ -94,19 +72,15 @@ go run cmd/gen-api/v1/main.go
 ```
 
 ### 3. Run the Server
-Start the development server with hot-reload (if using `air`) or standard go:
+Start the development server:
 ```bash
-# Using Air (recommended)
-air
-
-# Or using standard Go
 go run main.go
 ```
 The server will start running on port `8000`.
 
 ---
 
-## 📝 API Testing Examples
+## 📝 API Testing Tutorials
 
 ### 1. View Swagger UI Docs
 Open your browser and navigate to:
@@ -114,16 +88,93 @@ Open your browser and navigate to:
 http://localhost:8000/api/v1/docs
 ```
 
-### 2. Public Endpoint (Status Check)
+### 2. User Registration (HTTP 201)
+Create a new user. The system hashes the password using Argon2id and creates the User and Account records inside a database transaction:
 ```bash
-curl -X 'GET' 'http://localhost:8000/api/v1/status' -H 'accept: application/json'
+curl -X 'POST' \
+  'http://localhost:8000/api/v1/auth/register' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "mySecurePassword123"
+}'
+```
+Response:
+```json
+{
+  "email": "jane@example.com",
+  "id": "uuid-string-here",
+  "name": "Jane Doe"
+}
 ```
 
-### 3. Secure Endpoint (Get Me) - Missing Token (HTTP 401)
+### 3. User Login (HTTP 200)
+Authenticate user credentials to retrieve a JWT access token and register an active session record in GORM:
 ```bash
-curl -X 'GET' 'http://localhost:8000/api/v1/auth/me' -H 'accept: application/json'
+curl -X 'POST' \
+  'http://localhost:8000/api/v1/auth/login' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "email": "jane@example.com",
+  "password": "mySecurePassword123"
+}'
 ```
-Response (structured via [response.go](file:///home/misbakhulmunir/Dokumen/projects/Golang/Learning/Chi%20Framework/pkg/httpx/response.go)):
+Response:
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "email": "jane@example.com",
+    "id": "uuid-string-here",
+    "name": "Jane Doe"
+  }
+}
+```
+
+### 4. Fetch User Profile (Get Me) (HTTP 200)
+Query user profile information using the retrieved Bearer access token:
+```bash
+curl -X 'GET' \
+  'http://localhost:8000/api/v1/auth/me' \
+  -H 'accept: application/json' \
+  -H 'Authorization: Bearer <your-access-token>'
+```
+Response:
+```json
+{
+  "id": "uuid-string-here",
+  "name": "Jane Doe",
+  "email": "jane@example.com"
+}
+```
+
+### 5. User Logout (HTTP 200)
+Revoke the active database session:
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/api/v1/auth/logout' \
+  -H 'accept: application/json' \
+  -H 'Authorization: Bearer <your-access-token>'
+```
+Response:
+```json
+{
+  "message": "successfully logged out"
+}
+```
+
+### 6. Verification after Logout (HTTP 401)
+Verify that requests made using the same token after logging out are rejected because the session GORM record was successfully deleted:
+```bash
+curl -X 'GET' \
+  'http://localhost:8000/api/v1/auth/me' \
+  -H 'accept: application/json' \
+  -H 'Authorization: Bearer <your-access-token>'
+```
+Response:
 ```json
 {
   "error": {
@@ -131,57 +182,5 @@ Response (structured via [response.go](file:///home/misbakhulmunir/Dokumen/proje
     "message": "Unauthorized access",
     "request_id": "req-uuid"
   }
-}
-```
-
-### 4. Secure Endpoint (Get Me) - Successful Request (HTTP 200)
-To request using a mock token that contains the required `auth:me:read` permission:
-```bash
-curl -X 'GET' \
-  'http://localhost:8000/api/v1/auth/me' \
-  -H 'accept: application/json' \
-  -H 'Authorization: Bearer mock-user-token'
-```
-Response:
-```json
-{
-  "id": "00000000-0000-0000-0000-000000000002",
-  "name": "John Doe",
-  "email": "jhon.dow@mail.com"
-}
-```
-
-### 5. Secure Endpoint (Get Me) - Forbidden Request (HTTP 403)
-To request using a mock token that does NOT contain the required `auth:me:read` permission:
-```bash
-curl -X 'GET' \
-  'http://localhost:8000/api/v1/auth/me' \
-  -H 'accept: application/json' \
-  -H 'Authorization: Bearer mock-no-perm-token'
-```
-Response:
-```json
-{
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Insufficient permissions",
-    "request_id": "req-uuid"
-  }
-}
-```
-
-### 5. Audit Logging Verification
-When calling `/auth/me` (which has `x-audit: true`), the server will output a structured JSON log context to stdout:
-```json
-{
-  "time": "2026-08-14T22:37:23.000+07:00",
-  "level": "INFO",
-  "msg": "Crucial endpoint accessed",
-  "operation_id": "getMe",
-  "method": "GET",
-  "path": "/api/v1/auth/me",
-  "user_id": "00000000-0000-0000-0000-000000000001",
-  "tenant_id": "00000000-0000-0000-0000-000000000001",
-  "remote_ip": "127.0.0.1"
 }
 ```

@@ -25,7 +25,7 @@ func main() {
 	env := config.LoadEnv()
 
 	// Databas
-	DB, err := db.InitDB(env.Database)
+	DB, err := db.InitDB(env.Database, security.RegisteredPermissions)
 	if err != nil {
 		panic("failed to connect database: " + err.Error())
 	}

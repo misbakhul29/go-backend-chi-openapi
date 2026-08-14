@@ -44,4 +44,14 @@ func RegisterSchemas(schemas openapi3.Schemas) {
 			}),
 		},
 	})
+
+	schemas["SuccessPermissionCheckResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"message": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type: &openapi3.Types{"string"},
+				Example: "has debug permission",
+			}),
+		},
+	})
 }

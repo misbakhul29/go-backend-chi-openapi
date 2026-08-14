@@ -28,3 +28,14 @@ func (h *HealthHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 }
+
+// GetSystemPermissionCheck handles permission verification check
+func (h *HealthHandler) GetSystemPermissionCheck(w http.ResponseWriter, r *http.Request) {
+	resp := apiv1.SuccessPermissionCheckResponse{
+		Message: new("has debug permission"),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}

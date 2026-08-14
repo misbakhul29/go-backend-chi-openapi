@@ -14,10 +14,35 @@ type User struct {
 	UpdatedAt     time.Time `gorm:"not null"`
 	Sessions      []Session `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 	Accounts      []Account `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	Roles         []Role    `gorm:"many2many:user_roles;constraint:OnDelete:CASCADE"`
 }
 
 func (User) TableName() string {
 	return "user"
+}
+
+type Role struct {
+	ID          string       `gorm:"primaryKey;type:varchar(255)"`
+	Name        string       `gorm:"type:varchar(255);unique;not null"`
+	CreatedAt   time.Time    `gorm:"not null"`
+	UpdatedAt   time.Time    `gorm:"not null"`
+	Permissions []Permission `gorm:"many2many:role_permissions;constraint:OnDelete:CASCADE"`
+	Users       []User       `gorm:"many2many:user_roles;constraint:OnDelete:CASCADE"`
+}
+
+func (Role) TableName() string {
+	return "role"
+}
+
+type Permission struct {
+	ID        string    `gorm:"primaryKey;type:varchar(255)"`
+	Code      string    `gorm:"type:varchar(255);unique;not null"`
+	CreatedAt time.Time `gorm:"not null"`
+	UpdatedAt time.Time `gorm:"not null"`
+}
+
+func (Permission) TableName() string {
+	return "permission"
 }
 
 type Session struct {

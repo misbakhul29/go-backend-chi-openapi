@@ -143,3 +143,29 @@ func (h *AuthHandler) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
+
+// PostAuthChangeRole handles request to change user role
+func (h *AuthHandler) PostAuthChangeRole(w http.ResponseWriter, r *http.Request) {
+	var req apiv1.ChangeRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.WriteError(w, r, httpx.ErrBadRequest)
+		return
+	}
+
+	if req.UserId == "" || req.Role == "" {
+		httpx.WriteError(w, r, httpx.ErrValidation)
+		return
+	}
+
+	err := h.service.ChangeRole(r.Context(), req.UserId, req.Role)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+
+	resp := apiv1.SuccessChangeRoleResponse{
+		Message: new("role successfully updated"),
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}

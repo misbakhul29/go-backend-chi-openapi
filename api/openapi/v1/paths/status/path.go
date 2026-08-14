@@ -41,12 +41,56 @@ func RegisterPaths(paths *openapi3.Paths) {
 		Get: &openapi3.Operation{
 			OperationID: "getStatus",
 			Summary:     "Get API Status",
-			Tags:        []string{"Status"},
+			Tags:        []string{"System"},
 			Extensions: map[string]any{
 				"x-api-version": "v1",
 			},
 			Security:  &openapi3.SecurityRequirements{},
 			Responses: responses,
+		},
+	})
+
+	permCheckResponses := openapi3.NewResponses()
+	permCheckResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Has permission"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessPermissionCheckResponse", nil),
+				},
+			},
+		},
+	})
+	permCheckResponses.Set("401", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Unauthorized"),
+		},
+	})
+	permCheckResponses.Set("403", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Forbidden"),
+		},
+	})
+
+	paths.Set("/system/permission-check", &openapi3.PathItem{
+		Get: &openapi3.Operation{
+			OperationID: "getSystemPermissionCheck",
+			Summary:     "Check if user has debug permissions",
+			Tags:        []string{"System"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+				"x-permission": map[string]string{
+					"module":   "system",
+					"resource": "debug",
+					"action":   "read",
+				},
+			},
+			Security: &openapi3.SecurityRequirements{
+				openapi3.SecurityRequirement{
+					"BearerAuth": []string{},
+				},
+			},
+			Responses: permCheckResponses,
 		},
 	})
 }

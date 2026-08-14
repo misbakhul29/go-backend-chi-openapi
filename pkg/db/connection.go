@@ -12,10 +12,11 @@ import (
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
-func InitDB(cfg config.Database) (*gorm.DB, error) {
+func InitDB(cfg config.Database, permissions []string) (*gorm.DB, error) {
 	gormLogger := logger.New(
 		slog.NewLogLogger(observer.Log.Handler(), slog.LevelInfo),
 		logger.Config{
@@ -45,7 +46,7 @@ func InitDB(cfg config.Database) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
-	err = Migration(db)
+	err = Migration(db, permissions)
 	if err != nil {
 		observer.Log.Error("database migration failed", slog.Any("error", err))
 		return nil, err
@@ -77,16 +78,80 @@ func PingDB(ctx context.Context, db *gorm.DB) error {
 	return sqlDB.PingContext(ctx)
 }
 
-func Migration(db *gorm.DB) error {
+func Migration(db *gorm.DB, permissions []string) error {
 	quietDB := db.Session(&gorm.Session{Logger: logger.Discard})
 	err := quietDB.AutoMigrate(
 		&models.User{},
 		&models.Session{},
 		&models.Account{},
 		&models.Verification{},
+		&models.Role{},
+		&models.Permission{},
 	)
 	if err != nil && !strings.Contains(err.Error(), "42704") {
 		observer.Log.Warn("AutoMigrate schema notice", "error", err)
+	}
+
+	// Seed GORM roles and permissions on startup
+	if err := seedRolesAndPermissions(db, permissions); err != nil {
+		observer.Log.Error("failed to seed roles and permissions", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
+	var perms []models.Permission
+	for _, code := range permissions {
+		p := models.Permission{
+			ID:        code,
+			Code:      code,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := dbClient.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "code"}},
+			DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+		}).Create(&p).Error; err != nil {
+			return err
+		}
+		perms = append(perms, p)
+	}
+
+	adminRole := models.Role{
+		ID:        "ADMIN",
+		Name:      "ADMIN",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := dbClient.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+	}).Create(&adminRole).Error; err != nil {
+		return err
+	}
+
+	if err := dbClient.Model(&adminRole).Association("Permissions").Replace(perms); err != nil {
+		return err
+	}
+
+	memberRole := models.Role{
+		ID:        "MEMBER",
+		Name:      "MEMBER",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := dbClient.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "name"}},
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+	}).Create(&memberRole).Error; err != nil {
+		return err
+	}
+
+	var memberPerms []models.Permission
+	if err := dbClient.Model(&memberRole).Association("Permissions").Replace(memberPerms); err != nil {
+		return err
 	}
 
 	return nil

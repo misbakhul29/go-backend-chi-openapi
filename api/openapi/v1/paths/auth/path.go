@@ -186,11 +186,6 @@ func RegisterPaths(paths *openapi3.Paths) {
 			Extensions: map[string]any{
 				"x-api-version": "v1",
 				"x-audit":       true,
-				"x-permission": map[string]string{
-					"module":   "auth",
-					"resource": "me",
-					"action":   "read",
-				},
 			},
 			Security: &openapi3.SecurityRequirements{
 				openapi3.SecurityRequirement{
@@ -198,6 +193,61 @@ func RegisterPaths(paths *openapi3.Paths) {
 				},
 			},
 			Responses: responses,
+		},
+	})
+
+	// /auth/change-role endpoint
+	changeRoleResponses := openapi3.NewResponses()
+	changeRoleResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Role successfully updated"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessChangeRoleResponse", nil),
+				},
+			},
+		},
+	})
+	changeRoleResponses.Set("400", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("Bad Request"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/BadRequestResponse", nil),
+				},
+			},
+		},
+	})
+
+	paths.Set("/auth/change-role", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postAuthChangeRole",
+			Summary:     "Update a user's role",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+				"x-permission": map[string]string{
+					"module":   "auth",
+					"resource": "role",
+					"action":   "update",
+				},
+			},
+			Security: &openapi3.SecurityRequirements{
+				openapi3.SecurityRequirement{
+					"BearerAuth": []string{},
+				},
+			},
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Required: true,
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{
+							Schema: openapi3.NewSchemaRef("#/components/schemas/ChangeRoleRequest", nil),
+						},
+					},
+				},
+			},
+			Responses: changeRoleResponses,
 		},
 	})
 }

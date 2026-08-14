@@ -42,6 +42,12 @@ type BadRequestResponse struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// ChangeRoleRequest defines model for ChangeRoleRequest.
+type ChangeRoleRequest struct {
+	Role   string `json:"role"`
+	UserId string `json:"userId"`
+}
+
 // InternalErrorGetMeResponse defines model for InternalErrorGetMeResponse.
 type InternalErrorGetMeResponse struct {
 	// Error Error message
@@ -71,6 +77,11 @@ type RegisterRequest struct {
 	Email    openapi_types.Email `json:"email"`
 	Name     string              `json:"name"`
 	Password string              `json:"password"`
+}
+
+// SuccessChangeRoleResponse defines model for SuccessChangeRoleResponse.
+type SuccessChangeRoleResponse struct {
+	Message *string `json:"message,omitempty"`
 }
 
 // SuccessGetMeResponse defines model for SuccessGetMeResponse.
@@ -112,6 +123,11 @@ type SuccessLogoutResponse struct {
 	Message *string `json:"message,omitempty"`
 }
 
+// SuccessPermissionCheckResponse defines model for SuccessPermissionCheckResponse.
+type SuccessPermissionCheckResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // SuccessRegisterResponse defines model for SuccessRegisterResponse.
 type SuccessRegisterResponse struct {
 	Email *openapi_types.Email `json:"email,omitempty"`
@@ -125,6 +141,9 @@ type UnauthorizedGetMeResponse struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// PostAuthChangeRoleJSONRequestBody defines body for PostAuthChangeRole for application/json ContentType.
+type PostAuthChangeRoleJSONRequestBody = ChangeRoleRequest
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
 
@@ -133,6 +152,9 @@ type PostAuthRegisterJSONRequestBody = RegisterRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// PostAuthChangeRole Update a user's role
+	// (POST /auth/change-role)
+	PostAuthChangeRole(w http.ResponseWriter, r *http.Request)
 	// PostAuthLogin Authenticate user and retrieve access token
 	// (POST /auth/login)
 	PostAuthLogin(w http.ResponseWriter, r *http.Request)
@@ -148,11 +170,20 @@ type ServerInterface interface {
 	// GetStatus Get API Status
 	// (GET /status)
 	GetStatus(w http.ResponseWriter, r *http.Request)
+	// GetSystemPermissionCheck Check if user has debug permissions
+	// (GET /system/permission-check)
+	GetSystemPermissionCheck(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// PostAuthChangeRole Update a user's role
+// (POST /auth/change-role)
+func (_ Unimplemented) PostAuthChangeRole(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // PostAuthLogin Authenticate user and retrieve access token
 // (POST /auth/login)
@@ -184,6 +215,12 @@ func (_ Unimplemented) GetStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// GetSystemPermissionCheck Check if user has debug permissions
+// (GET /system/permission-check)
+func (_ Unimplemented) GetSystemPermissionCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler            ServerInterface
@@ -192,6 +229,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// PostAuthChangeRole operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthChangeRole(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthChangeRole(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // PostAuthLogin operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
@@ -254,6 +305,20 @@ func (siw *ServerInterfaceWrapper) GetStatus(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSystemPermissionCheck operation middleware
+func (siw *ServerInterfaceWrapper) GetSystemPermissionCheck(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSystemPermissionCheck(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -377,6 +442,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/change-role", wrapper.PostAuthChangeRole)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.PostAuthLogin)
 	})
 	r.Group(func(r chi.Router) {
@@ -391,6 +459,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/status", wrapper.GetStatus)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/system/permission-check", wrapper.GetSystemPermissionCheck)
+	})
 
 	return r
 }
@@ -400,26 +471,30 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"u4DwScZ8I5K71d8BAAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

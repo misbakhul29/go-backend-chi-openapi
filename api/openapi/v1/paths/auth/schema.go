@@ -154,4 +154,29 @@ func RegisterSchemas(schemas openapi3.Schemas) {
 			}),
 		},
 	})
+
+	schemas["ChangeRoleRequest"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Required: []string{"userId", "role"},
+		Properties: openapi3.Schemas{
+			"userId": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type: &openapi3.Types{"string"},
+				Example: "123",
+			}),
+			"role": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type: &openapi3.Types{"string"},
+				Example: "MEMBER",
+			}),
+		},
+	})
+
+	schemas["SuccessChangeRoleResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"message": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type: &openapi3.Types{"string"},
+				Example: "role successfully updated",
+			}),
+		},
+	})
 }
