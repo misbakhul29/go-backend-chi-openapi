@@ -35,6 +35,12 @@ type OperationPolicy struct {
 	DataScopes  []string          `json:"dataScopes"`
 	Audit       AuditPolicy       `json:"audit"`
 	StepUpMFA   StepUpMFAPolicy   `json:"stepUpMfa"`
+	RateLimit   *RateLimitPolicy  `json:"rateLimit"`
+}
+
+type RateLimitPolicy struct {
+	Limit  int `json:"limit"`
+	Window int `json:"window"` // seconds
 }
 
 type AuditPolicy struct {
@@ -149,6 +155,16 @@ func (pr *PolicyResolver) Resolve(r *http.Request) (OperationPolicy, bool) {
 				// Or object format
 				_ = json.Unmarshal(data, &mfa)
 				policy.StepUpMFA = mfa
+			}
+		}
+	}
+
+	// Extract x-rate-limit extension
+	if ext, ok := operation.Extensions["x-rate-limit"]; ok {
+		if data, err := json.Marshal(ext); err == nil {
+			var rateLimit RateLimitPolicy
+			if err := json.Unmarshal(data, &rateLimit); err == nil {
+				policy.RateLimit = &rateLimit
 			}
 		}
 	}

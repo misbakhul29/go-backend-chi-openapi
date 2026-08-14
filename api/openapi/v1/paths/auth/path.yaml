@@ -5,14 +5,6 @@ me:
     tags:
       - Auth
     x-api-version: v1
-    x-permission:
-      module: auth
-      resource: me
-      action: read
-    x-data-scopes:
-      - user:read
-    x-audit:
-      required: true
     security:
       - BearerAuth: []
     responses:

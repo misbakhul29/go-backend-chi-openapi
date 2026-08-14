@@ -4,15 +4,3 @@
 /auth/me:
   $ref: auth/path.yaml#/me
 
-/check/rbac:
-  $ref: check/path.yaml#/rbac
-
-/check/scopes:
-  $ref: check/path.yaml#/scopes
-
-/check/audit:
-  $ref: check/path.yaml#/audit
-
-/check/mfa:
-  $ref: check/path.yaml#/mfa
-

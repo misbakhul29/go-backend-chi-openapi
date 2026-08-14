@@ -37,18 +37,6 @@ func (e SuccessGetStatusResponseStatus) Valid() bool {
 	}
 }
 
-// CheckResponse defines model for CheckResponse.
-type CheckResponse struct {
-	// AuditLogged Indicates if audit logging was triggered for the request
-	AuditLogged *bool   `json:"audit_logged,omitempty"`
-	Message     *string `json:"message,omitempty"`
-}
-
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Error *string `json:"error,omitempty"`
-}
-
 // InternalErrorGetMeResponse defines model for InternalErrorGetMeResponse.
 type InternalErrorGetMeResponse struct {
 	// Error Error message
@@ -102,18 +90,6 @@ type ServerInterface interface {
 	// GetMe Get current authenticated user
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
-	// CheckAudit Check audit logging middleware
-	// (GET /check/audit)
-	CheckAudit(w http.ResponseWriter, r *http.Request)
-	// CheckMfa Check Step-Up MFA middleware
-	// (GET /check/mfa)
-	CheckMfa(w http.ResponseWriter, r *http.Request)
-	// CheckRbac Check RBAC permission middleware
-	// (GET /check/rbac)
-	CheckRbac(w http.ResponseWriter, r *http.Request)
-	// CheckScopes Check data scopes middleware
-	// (GET /check/scopes)
-	CheckScopes(w http.ResponseWriter, r *http.Request)
 	// GetStatus Get API Status
 	// (GET /status)
 	GetStatus(w http.ResponseWriter, r *http.Request)
@@ -126,30 +102,6 @@ type Unimplemented struct{}
 // GetMe Get current authenticated user
 // (GET /auth/me)
 func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// CheckAudit Check audit logging middleware
-// (GET /check/audit)
-func (_ Unimplemented) CheckAudit(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// CheckMfa Check Step-Up MFA middleware
-// (GET /check/mfa)
-func (_ Unimplemented) CheckMfa(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// CheckRbac Check RBAC permission middleware
-// (GET /check/rbac)
-func (_ Unimplemented) CheckRbac(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// CheckScopes Check data scopes middleware
-// (GET /check/scopes)
-func (_ Unimplemented) CheckScopes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -173,62 +125,6 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CheckAudit operation middleware
-func (siw *ServerInterfaceWrapper) CheckAudit(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CheckAudit(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CheckMfa operation middleware
-func (siw *ServerInterfaceWrapper) CheckMfa(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CheckMfa(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CheckRbac operation middleware
-func (siw *ServerInterfaceWrapper) CheckRbac(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CheckRbac(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CheckScopes operation middleware
-func (siw *ServerInterfaceWrapper) CheckScopes(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CheckScopes(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -371,18 +267,6 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetMe)
 	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/check/rbac", wrapper.CheckRbac)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/check/scopes", wrapper.CheckScopes)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/check/audit", wrapper.CheckAudit)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/check/mfa", wrapper.CheckMfa)
-	})
 
 	return r
 }
@@ -392,27 +276,20 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"r7tkYMy6PpjFVbfs/gkAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

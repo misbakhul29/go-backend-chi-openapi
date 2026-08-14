@@ -1,26 +1,55 @@
 package main
 
 import (
+	"context"
 	"net/http"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
-	apiv1 "github.com/misbakhul29/learning-chi/api/openapi/v1/generated"
-	"github.com/misbakhul29/learning-chi/config"
-	handler "github.com/misbakhul29/learning-chi/internal/server"
-	"github.com/misbakhul29/learning-chi/pkg/observer"
-	"github.com/misbakhul29/learning-chi/pkg/security"
+	apiv1 "github.com/misbakhul29/backend-framework/api/openapi/v1/generated"
+	"github.com/misbakhul29/backend-framework/config"
+	handler "github.com/misbakhul29/backend-framework/internal/server"
+	"github.com/misbakhul29/backend-framework/pkg/db"
+	"github.com/misbakhul29/backend-framework/pkg/httpx"
+	"github.com/misbakhul29/backend-framework/pkg/observer"
+	"github.com/misbakhul29/backend-framework/pkg/rabbitx"
+	"github.com/misbakhul29/backend-framework/pkg/redisx"
+	"github.com/misbakhul29/backend-framework/pkg/security"
+	"github.com/misbakhul29/backend-framework/pkg/swagger"
 )
 
 func main() {
 	env := config.LoadEnv()
-	r := chi.NewRouter()
-	r.Use(observer.Logger)
-	r.Use(observer.Recoverer)
+
+	// Databas
+	DB, err := db.InitDB(env.Database)
+	if err != nil {
+		panic("failed to connect database: " + err.Error())
+	}
+	defer db.CloseDB(DB)
+
+	// Redis
+	redisClient, err := redisx.InitRedis(env.Redis)
+	if err != nil {
+		panic("failed to connect to Redis: " + err.Error())
+	}
+	defer redisClient.Close()
+
+	r := httpx.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to Chi Framework"))
 	})
+
+	// Rabbit
+	rmq, err := rabbitx.InitRabbit(env.RabbitMQ)
+	if err != nil {
+		panic("failed to connect to RabbitMQ: " + err.Error())
+	}
+	defer rmq.Close()
 
 	// Setup security middleware
 	swaggerSpec, err := apiv1.GetSpec()
@@ -32,78 +61,52 @@ func main() {
 		panic("failed to initialize policy resolver: " + err.Error())
 	}
 
-	jwtVerifier := &security.DummyJWTVerifier{}
+	jwtVerifier := security.NewJWTVerifier([]byte(env.JWT.Secret))
 	jwtService := security.NewJWTService(jwtVerifier)
-	securityMiddleware := security.NewMiddleware(jwtService, policyResolver)
+	securityMiddleware := security.NewMiddleware(jwtService, policyResolver, redisClient)
 
-	server := handler.NewServer()
+	server := handler.NewServer(DB, redisClient, rmq)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints (Docs & Welcome root)
-		swaggerSetup(r)
+		swagger.Setup(r)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("Welcome to Chi Framework"))
 		})
 
 		// Secure API endpoints defined in OpenAPI specification
 		r.Group(func(r chi.Router) {
+			r.Use(securityMiddleware.RateLimit)
 			r.Use(securityMiddleware.Security)
+			r.Use(securityMiddleware.Audit)
 			apiv1.HandlerFromMux(server, r)
 		})
 	})
 
-	println("Server started on port ", env.Port)
-	http.ListenAndServe(":"+env.Port, r)
-}
+	srv := &http.Server{
+		Addr:    ":" + env.Port,
+		Handler: r,
+	}
 
-func swaggerSetup(r chi.Router) {
-	r.Get("/docs", swaggerUI())
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	root := http.Dir("api/openapi/v1")
+	go func() {
+		observer.Log.Info("Server started", "port", env.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic("failed to start server: " + err.Error())
+		}
+	}()
 
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		rctx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fs.ServeHTTP(w, r)
-	})
-}
+	<-stop
+	observer.Log.Info("Shutting down server gracefully...")
 
-func swaggerUI() http.HandlerFunc {
-	html := `
-		<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="SwaggerUI" />
-    <title>SwaggerUI</title>
-    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
-  </head>
-  <body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
-  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" crossorigin></script>
-  <script>
-    window.onload = () => {
-      window.ui = SwaggerUIBundle({
-        url: '/api/v1/_bundled.yaml',
-        dom_id: '#swagger-ui',
-        presets: [
-          SwaggerUIBundle.presets.apis,
-          SwaggerUIStandalonePreset
-        ],
-        layout: "StandaloneLayout",
-      });
-    };
-  </script>
-  </body>
-</html>
-	`
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(html))
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		observer.Log.Error("Server forced to shutdown", "error", err)
+	} else {
+		observer.Log.Info("Server gracefully stopped")
 	}
 }

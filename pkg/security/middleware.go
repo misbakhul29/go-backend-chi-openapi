@@ -2,19 +2,27 @@ package security
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/misbakhul29/backend-framework/pkg/errs"
+	"github.com/misbakhul29/backend-framework/pkg/observer"
+	"github.com/redis/go-redis/v9"
 )
 
 type Middleware struct {
 	jwtService     *JWTService
 	policyResolver *PolicyResolver
+	redisClient    *redis.Client
 }
 
-func NewMiddleware(jwtService *JWTService, policyResolver *PolicyResolver) *Middleware {
+func NewMiddleware(jwtService *JWTService, policyResolver *PolicyResolver, redisClient *redis.Client) *Middleware {
 	return &Middleware{
 		jwtService:     jwtService,
 		policyResolver: policyResolver,
+		redisClient:    redisClient,
 	}
 }
 
@@ -32,11 +40,6 @@ func (m *Middleware) Security(next http.Handler) http.Handler {
 		}
 
 		if !policy.Security.Required {
-			// Even if security is not required, let's still run audit checks if x-audit is configured
-			if policy.Audit.Required {
-				fmt.Printf("[AUDIT] Public endpoint accessed: %s %s (Operation: %s)\n", r.Method, r.URL.Path, policy.OperationID)
-				r = r.WithContext(WithAuditLogged(r.Context()))
-			}
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -130,12 +133,6 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 		}
 	}
 
-	// 4. Audit Logging Check
-	if policy.Audit.Required {
-		fmt.Printf("[AUDIT] Authenticated endpoint accessed: %s %s (User: %s, Operation: %s)\n", r.Method, r.URL.Path, principal.UserID, policy.OperationID)
-		r = r.WithContext(WithAuditLogged(r.Context()))
-	}
-
 	next.ServeHTTP(w, r)
 }
 
@@ -149,4 +146,99 @@ func writeProblem(w http.ResponseWriter, status int, code string) {
 		"title": "` + code + `",
 		"status": "` + strconv.Itoa(status) + `"
 	}`))
+}
+
+func (m *Middleware) RateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		policy, ok := m.policyResolver.Resolve(r)
+
+		limit := 60
+		window := 60
+		operationID := "default"
+
+		if ok {
+			if policy.OperationID != "" {
+				operationID = policy.OperationID
+			}
+			if policy.RateLimit != nil {
+				limit = policy.RateLimit.Limit
+				window = policy.RateLimit.Window
+			}
+		} else {
+			operationID = r.URL.Path
+		}
+
+		if m.redisClient == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx := r.Context()
+		ip := getClientIP(r)
+		redisKey := fmt.Sprintf("ratelimit:%s:%s", ip, operationID)
+
+		pipe := m.redisClient.Pipeline()
+		incr := pipe.Incr(ctx, redisKey)
+		pipe.TTL(ctx, redisKey)
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		count := incr.Val()
+		if count == 1 {
+			m.redisClient.Expire(ctx, redisKey, time.Duration(window)*time.Second)
+		}
+
+		if count > int64(limit) {
+			w.Header().Set("Retry-After", strconv.Itoa(window))
+			writeProblem(w, http.StatusTooManyRequests, string(errs.ErrCodeRateLimitExceeded))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (m *Middleware) Audit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		policy, ok := m.policyResolver.Resolve(r)
+		if !ok || !policy.Audit.Required {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx := r.Context()
+		var userIDStr string
+		var tenantIDStr string
+
+		if principal, ok := PrincipalFromContext(ctx); ok {
+			userIDStr = principal.UserID.String()
+			tenantIDStr = principal.TenantID.String()
+		}
+
+		observer.Log.InfoContext(ctx, "Crucial endpoint accessed",
+			slog.String("operation_id", policy.OperationID),
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.String("user_id", userIDStr),
+			slog.String("tenant_id", tenantIDStr),
+			slog.String("remote_ip", getClientIP(r)),
+		)
+
+		r = r.WithContext(WithAuditLogged(ctx))
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getClientIP(r *http.Request) string {
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.Header.Get("X-Real-IP")
+	}
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
+	return ip
 }

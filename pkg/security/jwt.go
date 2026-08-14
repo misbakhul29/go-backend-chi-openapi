@@ -3,8 +3,10 @@ package security
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -29,44 +31,59 @@ type JWTVerifier interface {
 	Verify(ctx context.Context, token string) (*JWTClaims, error)
 }
 
-type DummyJWTVerifier struct{}
+type JWTVerifierImpl struct {
+	secret []byte
+}
 
-func (v *DummyJWTVerifier) Verify(ctx context.Context, token string) (*JWTClaims, error) {
-	if token == "my-secret-token" {
-		return &JWTClaims{
-			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
-			JTI:         "dummy-jti",
-			RolesHash:   "dummy-hash",
-			AMR:         []string{"pwd"},
-			Permissions: []string{"check:rbac:read"},
-			Scopes:      []string{"check:scopes:read"},
-		}, nil
-	} else if token == "mfa-token" {
-		return &JWTClaims{
-			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
-			JTI:         "mfa-jti",
-			RolesHash:   "mfa-hash",
-			AMR:         []string{"pwd", "mfa"},
-			Permissions: []string{"check:rbac:read"},
-			Scopes:      []string{"check:scopes:read"},
-		}, nil
-	} else if token == "no-permission-token" {
-		return &JWTClaims{
-			Subject:     uuid.MustParse("00000000-0000-0000-0000-000000000009"),
-			TenantID:    uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-			SessionID:   uuid.MustParse("00000000-0000-0000-0000-000000000003"),
-			JTI:         "no-permission-jti",
-			RolesHash:   "no-permission-hash",
-			AMR:         []string{"pwd"},
-			Permissions: []string{}, // Empty permissions
-			Scopes:      []string{}, // Empty scopes
-		}, nil
+func NewJWTVerifier(secret []byte) *JWTVerifierImpl {
+	return &JWTVerifierImpl{secret: secret}
+}
+
+func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &accessClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return v.secret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, ErrInvalidToken
 	}
-	return nil, ErrInvalidToken
+
+	claims, ok := token.Claims.(*accessClaims)
+	if !ok {
+		return nil, ErrInvalidToken
+	}
+
+	subUUID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	tenantUUID, err := uuid.Parse(claims.TenantID)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	// SessionID can be fallback to UUID Nil if not specified in accessClaims
+	var sessionUUID uuid.UUID
+	if claims.ID != "" {
+		if u, err := uuid.Parse(claims.ID); err == nil {
+			sessionUUID = u
+		}
+	}
+
+	return &JWTClaims{
+		Subject:     subUUID,
+		TenantID:    tenantUUID,
+		SessionID:   sessionUUID,
+		JTI:         claims.ID,
+		RolesHash:   "", // Optional hash
+		AMR:         claims.AMR,
+		Permissions: claims.Permissions,
+		Scopes:      claims.Scopes,
+	}, nil
 }
 
 type JWTService struct {

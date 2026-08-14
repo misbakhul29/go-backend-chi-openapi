@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	apiv1 "github.com/misbakhul29/learning-chi/api/openapi/v1/generated"
+	apiv1 "github.com/misbakhul29/backend-framework/api/openapi/v1/generated"
 )
 
 type HealthHandler struct{}

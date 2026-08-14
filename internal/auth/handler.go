@@ -6,8 +6,8 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	apiv1 "github.com/misbakhul29/learning-chi/api/openapi/v1/generated"
-	"github.com/misbakhul29/learning-chi/pkg/security"
+	apiv1 "github.com/misbakhul29/backend-framework/api/openapi/v1/generated"
+	"github.com/misbakhul29/backend-framework/pkg/security"
 )
 
 type AuthHandler struct{}
