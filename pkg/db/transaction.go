@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 
+	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"gorm.io/gorm"
 )
@@ -13,11 +14,24 @@ const (
 	TxContextKey contextKey = "db_tx"
 )
 
+func isTenantEnabled() bool {
+	if config.Cfg != nil {
+		return config.Cfg.Database.EnableMultiTenant
+	}
+	return false
+}
+
 func WithTenantID(ctx context.Context, tenantID string) context.Context {
+	if !isTenantEnabled() {
+		return ctx
+	}
 	return context.WithValue(ctx, observer.TenantIDKey, tenantID)
 }
 
 func GetTenantID(ctx context.Context) string {
+	if !isTenantEnabled() {
+		return ""
+	}
 	if val, ok := ctx.Value(observer.TenantIDKey).(string); ok {
 		return val
 	}
@@ -41,10 +55,12 @@ func WithTx(ctx context.Context, db *gorm.DB, fn func(txCtx context.Context, tx 
 	}
 
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tenantID := GetTenantID(ctx)
-		if tenantID != "" {
-			if err := tx.Exec("SELECT set_config('app.tenant_id', ?, true)", tenantID).Error; err != nil {
-				return err
+		if isTenantEnabled() {
+			tenantID := GetTenantID(ctx)
+			if tenantID != "" {
+				if err := tx.Exec("SELECT set_config('app.tenant_id', ?, true)", tenantID).Error; err != nil {
+					return err
+				}
 			}
 		}
 

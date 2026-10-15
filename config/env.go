@@ -8,12 +8,13 @@ import (
 )
 
 type Database struct {
-	Hostname   string
-	Port       string
-	Provider   string
-	DBName     string
-	DBUser     string
-	DBPassword string
+	Hostname           string
+	Port               string
+	Provider           string
+	DBName             string
+	DBUser             string
+	DBPassword         string
+	EnableMultiTenant  bool
 }
 
 type Redis struct {
@@ -58,12 +59,13 @@ func LoadEnv() *Env {
 		NodeEnv: EnvKey("NODE_ENV", "development"),
 		Port:    EnvKey("PORT", "8080"),
 		Database: Database{
-			Hostname:   EnvKey("DB_HOST", "localhost"),
-			Port:       EnvKey("DB_PORT", "5432"),
-			Provider:   EnvKey("DB_PROVIDER", "postgres"),
-			DBName:     EnvKey("DB_NAME", "postgres"),
-			DBUser:     EnvKey("DB_USER", "postgres"),
-			DBPassword: EnvKey("DB_PASSWORD", "admin"),
+			Hostname:          EnvKey("DB_HOST", "localhost"),
+			Port:              EnvKey("DB_PORT", "5432"),
+			Provider:          EnvKey("DB_PROVIDER", "postgres"),
+			DBName:            EnvKey("DB_NAME", "postgres"),
+			DBUser:            EnvKey("DB_USER", "postgres"),
+			DBPassword:        EnvKey("DB_PASSWORD", "admin"),
+			EnableMultiTenant: EnvKeyBool("TENANT_ENABLED", false),
 		},
 		Redis: Redis{
 			Hostname: EnvKey("REDIS_HOST", "localhost"),
@@ -123,6 +125,21 @@ func EnvKeyInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func EnvKeyBool(key string, fallback bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	switch val {
+	case "1", "t", "T", "true", "TRUE", "True", "yes", "YES", "y", "Y":
+		return true
+	case "0", "f", "F", "false", "FALSE", "False", "no", "NO", "n", "N":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func (d Database) DatabaseUrl() string {
