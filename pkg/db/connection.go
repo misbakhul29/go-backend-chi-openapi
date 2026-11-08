@@ -49,10 +49,10 @@ func InitDB(cfg config.Database, permissions []string) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
-	err = Migration(db, permissions)
-	if err != nil {
-		observer.Log.Error("database migration failed", slog.Any("error", err))
-		return nil, err
+	if len(permissions) > 0 {
+		if err := SeedRolesAndPermissions(db, permissions); err != nil {
+			observer.Log.Warn("roles and permissions seed notice", "error", err)
+		}
 	}
 
 	observer.Log.Info("database connection established successfully")
@@ -99,7 +99,7 @@ func Migration(db *gorm.DB, permissions []string) error {
 	}
 
 	// Seed GORM roles and permissions on startup
-	if err := seedRolesAndPermissions(db, permissions); err != nil {
+	if err := SeedRolesAndPermissions(db, permissions); err != nil {
 		observer.Log.Error("failed to seed roles and permissions", "error", err)
 		return err
 	}
@@ -107,7 +107,7 @@ func Migration(db *gorm.DB, permissions []string) error {
 	return nil
 }
 
-func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
+func SeedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	var perms []models.Permission
 	for _, code := range permissions {
 		// Generate a stable UUID from the permission code string

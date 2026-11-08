@@ -75,13 +75,32 @@ Pass `-force` to overwrite existing configuration:
 go run cmd/gen-env/main.go -force
 ```
 
-### 3. Generate OpenAPI Server Code
+### 3. Database Migrations (`cmd/migrate`)
+Manage versioned PostgreSQL migrations without `AutoMigrate`:
+```bash
+# Apply all pending migrations & seed default roles/permissions
+go run cmd/migrate push
+
+# Check migration status (applied vs pending)
+go run cmd/migrate status
+
+# Create a new versioned migration file
+go run cmd/migrate make <migration_name>
+
+# Rollback the last applied migration
+go run cmd/migrate rollback
+
+# Seed default roles and permissions manually
+go run cmd/migrate seed
+```
+
+### 4. Generate OpenAPI Server Code
 Whenever you modify files in `api/openapi/v1/`, run the generator command to compile the spec and regenerate `api.gen.go`:
 ```bash
 go run cmd/gen-api/v1/main.go
 ```
 
-### 4. Run the Server
+### 5. Run the Server
 Start the development server:
 ```bash
 go run main.go
