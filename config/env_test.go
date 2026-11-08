@@ -40,6 +40,8 @@ func TestLoadEnv_WithEnvironmentVariables(t *testing.T) {
 	os.Setenv("PORT", "9999")
 	os.Setenv("RABBITMQ_EXCHANGE_PREFIX", "custom_queue")
 	os.Setenv("TENANT_ENABLED", "true")
+	os.Setenv("GOOGLE_CLIENT_ID", "google-client-id-test")
+	os.Setenv("SAML_SP_ENTITY_ID", "https://example.com/saml/metadata")
 
 	defer func() {
 		os.Unsetenv("NODE_ENV")
@@ -47,6 +49,8 @@ func TestLoadEnv_WithEnvironmentVariables(t *testing.T) {
 		os.Unsetenv("PORT")
 		os.Unsetenv("RABBITMQ_EXCHANGE_PREFIX")
 		os.Unsetenv("TENANT_ENABLED")
+		os.Unsetenv("GOOGLE_CLIENT_ID")
+		os.Unsetenv("SAML_SP_ENTITY_ID")
 	}()
 
 	env := LoadEnv()
@@ -61,6 +65,12 @@ func TestLoadEnv_WithEnvironmentVariables(t *testing.T) {
 	}
 	if !env.Database.EnableMultiTenant {
 		t.Errorf("expected EnableMultiTenant true, got false")
+	}
+	if env.OAuth.Google.ClientID != "google-client-id-test" {
+		t.Errorf("expected Google ClientID 'google-client-id-test', got %q", env.OAuth.Google.ClientID)
+	}
+	if env.SAML.EntityID != "https://example.com/saml/metadata" {
+		t.Errorf("expected SAML EntityID 'https://example.com/saml/metadata', got %q", env.SAML.EntityID)
 	}
 }
 

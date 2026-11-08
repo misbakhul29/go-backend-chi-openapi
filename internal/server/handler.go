@@ -1,9 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
-	"github.com/go-chi/chi/v5"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -21,7 +18,16 @@ type Server struct {
 	*auth.AuthHandler
 }
 
-func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, jwtCfg config.JWT) *Server {
+func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, env *config.Env) *Server {
+	var jwtCfg config.JWT
+	var oauthCfg config.OAuth
+	var samlCfg config.SAML
+	if env != nil {
+		jwtCfg = env.JWT
+		oauthCfg = env.OAuth
+		samlCfg = env.SAML
+	}
+
 	authRepo := auth.NewRepository(db)
 	authService := auth.NewService(authRepo, db, redis, jwtCfg)
 
@@ -32,47 +38,47 @@ func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, j
 
 	reg := oauth.NewRegistry()
 	reg.Register(oauth.NewGoogleProvider(oauth.GoogleConfig{
-		ClientID:     config.EnvKey("GOOGLE_CLIENT_ID", ""),
-		ClientSecret: config.EnvKey("GOOGLE_CLIENT_SECRET", ""),
-		RedirectURL:  config.EnvKey("GOOGLE_REDIRECT_URL", ""),
+		ClientID:     oauthCfg.Google.ClientID,
+		ClientSecret: oauthCfg.Google.ClientSecret,
+		RedirectURL:  oauthCfg.Google.RedirectURL,
 	}, nil))
 	reg.Register(oauth.NewGitHubProvider(oauth.GitHubConfig{
-		ClientID:     config.EnvKey("GITHUB_CLIENT_ID", ""),
-		ClientSecret: config.EnvKey("GITHUB_CLIENT_SECRET", ""),
-		RedirectURL:  config.EnvKey("GITHUB_REDIRECT_URL", ""),
+		ClientID:     oauthCfg.GitHub.ClientID,
+		ClientSecret: oauthCfg.GitHub.ClientSecret,
+		RedirectURL:  oauthCfg.GitHub.RedirectURL,
 	}, nil))
 	reg.Register(oauth.NewFacebookProvider(oauth.FacebookConfig{
-		ClientID:     config.EnvKey("FACEBOOK_CLIENT_ID", ""),
-		ClientSecret: config.EnvKey("FACEBOOK_CLIENT_SECRET", ""),
-		RedirectURL:  config.EnvKey("FACEBOOK_REDIRECT_URL", ""),
+		ClientID:     oauthCfg.Facebook.ClientID,
+		ClientSecret: oauthCfg.Facebook.ClientSecret,
+		RedirectURL:  oauthCfg.Facebook.RedirectURL,
 	}, nil))
 	reg.Register(oauth.NewDiscordProvider(oauth.DiscordConfig{
-		ClientID:     config.EnvKey("DISCORD_CLIENT_ID", ""),
-		ClientSecret: config.EnvKey("DISCORD_CLIENT_SECRET", ""),
-		RedirectURL:  config.EnvKey("DISCORD_REDIRECT_URL", ""),
+		ClientID:     oauthCfg.Discord.ClientID,
+		ClientSecret: oauthCfg.Discord.ClientSecret,
+		RedirectURL:  oauthCfg.Discord.RedirectURL,
 	}, nil))
 	reg.Register(oauth.NewTwitterProvider(oauth.TwitterConfig{
-		ClientID:     config.EnvKey("TWITTER_CLIENT_ID", ""),
-		ClientSecret: config.EnvKey("TWITTER_CLIENT_SECRET", ""),
-		RedirectURL:  config.EnvKey("TWITTER_REDIRECT_URL", ""),
+		ClientID:     oauthCfg.Twitter.ClientID,
+		ClientSecret: oauthCfg.Twitter.ClientSecret,
+		RedirectURL:  oauthCfg.Twitter.RedirectURL,
 	}, nil))
 	if apple, err := oauth.NewAppleProvider(oauth.AppleConfig{
-		ClientID:    config.EnvKey("APPLE_CLIENT_ID", ""),
-		TeamID:      config.EnvKey("APPLE_TEAM_ID", ""),
-		KeyID:       config.EnvKey("APPLE_KEY_ID", ""),
-		PrivateKey:  config.EnvKey("APPLE_PRIVATE_KEY", ""),
-		RedirectURL: config.EnvKey("APPLE_REDIRECT_URL", ""),
+		ClientID:    oauthCfg.Apple.ClientID,
+		TeamID:      oauthCfg.Apple.TeamID,
+		KeyID:       oauthCfg.Apple.KeyID,
+		PrivateKey:  oauthCfg.Apple.PrivateKey,
+		RedirectURL: oauthCfg.Apple.RedirectURL,
 	}, nil); err == nil {
 		reg.Register(apple)
 	}
 	authHandler.SetOAuthRegistry(reg)
 
 	samlSvc, _ := sso.NewSAMLService(sso.SAMLSPConfig{
-		EntityID:    config.EnvKey("SAML_SP_ENTITY_ID", "http://localhost:8800/api/v1/auth/sso/saml/metadata"),
-		ACSURL:      config.EnvKey("SAML_SP_ACS_URL", "http://localhost:8800/api/v1/auth/sso/saml/acs"),
-		IdPEntityID: config.EnvKey("SAML_IDP_ENTITY_ID", ""),
-		IdPSSOURL:   config.EnvKey("SAML_IDP_SSO_URL", ""),
-		IdPCertPEM:  config.EnvKey("SAML_IDP_CERT_PEM", ""),
+		EntityID:    samlCfg.EntityID,
+		ACSURL:      samlCfg.ACSURL,
+		IdPEntityID: samlCfg.IdPEntityID,
+		IdPSSOURL:   samlCfg.IdPSSOURL,
+		IdPCertPEM:  samlCfg.IdPCertPEM,
 	})
 	authHandler.SetSAMLService(samlSvc)
 
@@ -80,8 +86,4 @@ func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, j
 		HealthHandler: health.NewHandler(),
 		AuthHandler:   authHandler,
 	}
-}
-
-func (s *Server) MountRoutes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
-	s.AuthHandler.RegisterRoutes(r, authMiddleware)
 }
