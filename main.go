@@ -39,9 +39,22 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	r := httpx.NewRouter()
+	// OpenTelemetry Tracer
+	tp, _ := observer.InitTracer(env.APPName)
+	if tp != nil {
+		defer func() {
+			_ = tp.Shutdown(context.Background())
+		}()
+	}
 
+	r := httpx.NewRouter()
+	r.Use(observer.TracerMiddleware)
+	r.Use(observer.MetricsMiddleware)
+	r.Use(observer.Logger)
+
+	// Observability & Landing
 	r.Get("/", landing.Handler())
+	r.Handle("/metrics", observer.MetricsHandler())
 
 	// Rabbit
 	rmq, err := rabbitx.InitRabbit(env.RabbitMQ)
@@ -69,6 +82,7 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public endpoints (Docs & Welcome root)
 		swagger.Setup(r)
+		r.Get("/status/system", observer.SystemDiagnosticsHandler(DB, redisClient, rmq))
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"status":"ok","name":"` + env.APPName + `","version":"v1","docs":"/api/v1/docs"}`))

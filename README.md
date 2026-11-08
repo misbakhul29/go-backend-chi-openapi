@@ -92,11 +92,10 @@ The server will start running on port `8000`.
 
 ## 📝 API Testing Tutorials
 
-### 1. View Swagger UI Docs
-Open your browser and navigate to:
-```text
-http://localhost:8000/api/v1/docs
-```
+### 1. View Swagger UI Docs & Monitoring
+- **Interactive API Documentation**: `http://localhost:8800/api/v1/docs`
+- **Prometheus Metrics Exporter**: `http://localhost:8800/metrics`
+- **Live System Diagnostic Pulse**: `http://localhost:8800/api/v1/status/system`
 
 ### 2. User Registration (HTTP 201)
 Create a new user. The system hashes the password using Argon2id and creates the User and Account records inside a database transaction:

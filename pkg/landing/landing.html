@@ -778,6 +778,16 @@ curl -X GET "http://localhost:{{.Port}}/api/v1/auth/me" \
         <tbody>
           <tr>
             <td><span class="method method-get">GET</span></td>
+            <td><a href="/metrics" class="route-path">/metrics</a></td>
+            <td>Prometheus metrics exporter (Go runtime, memory, HTTP latency)</td>
+          </tr>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
+            <td><a href="/api/v1/status/system" class="route-path">/api/v1/status/system</a></td>
+            <td>Live system diagnostics (CPU, MemStats, DB Pool, Redis, Uptime)</td>
+          </tr>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
             <td><a href="/api/v1/status" class="route-path">/api/v1/status</a></td>
             <td>Probe kesehatan dan ketersediaan layanan</td>
           </tr>
