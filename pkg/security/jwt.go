@@ -20,6 +20,7 @@ type JWTClaims struct {
 	Subject     uuid.UUID
 	TenantID    uuid.UUID
 	SessionID   uuid.UUID
+	Role        string
 	JTI         string
 	RolesHash   string
 	AMR         []string
@@ -68,7 +69,11 @@ func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClai
 	}
 
 	var sessionUUID uuid.UUID
-	if claims.ID != "" {
+	if claims.SessionID != "" {
+		if u, err := uuid.Parse(claims.SessionID); err == nil {
+			sessionUUID = u
+		}
+	} else if claims.ID != "" {
 		if u, err := uuid.Parse(claims.ID); err == nil {
 			sessionUUID = u
 		}
@@ -78,6 +83,7 @@ func (v *JWTVerifierImpl) Verify(ctx context.Context, tokenStr string) (*JWTClai
 		Subject:     subUUID,
 		TenantID:    tenantUUID,
 		SessionID:   sessionUUID,
+		Role:        claims.Role,
 		JTI:         claims.ID,
 		RolesHash:   "",
 		AMR:         claims.AMR,
@@ -105,6 +111,7 @@ func (s *JWTService) Authenticate(ctx context.Context, token string) (*Principal
 		UserID:      claims.Subject,
 		TenantID:    claims.TenantID,
 		SessionID:   claims.SessionID,
+		Role:        claims.Role,
 		JTI:         claims.JTI,
 		RolesHash:   claims.RolesHash,
 		AMR:         claims.AMR,

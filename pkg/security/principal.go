@@ -12,6 +12,7 @@ type Principal struct {
 	UserID      uuid.UUID
 	TenantID    uuid.UUID
 	SessionID   uuid.UUID
+	Role        string
 	JTI         string
 	RolesHash   string
 	AMR         []string

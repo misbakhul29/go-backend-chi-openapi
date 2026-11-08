@@ -203,6 +203,16 @@ var (
 		messageKey: string(errs.ErrCodeTokenReuseDetected),
 		statusCode: 401,
 	}
+	ErrInvalidRefreshToken = &apiErrorImpl{
+		code:       string(errs.ErrCodeInvalidRefreshToken),
+		messageKey: string(errs.ErrCodeInvalidRefreshToken),
+		statusCode: 401,
+	}
+	ErrInvalidToken = &apiErrorImpl{
+		code:       string(errs.ErrCodeInvalidToken),
+		messageKey: string(errs.ErrCodeInvalidToken),
+		statusCode: 400,
+	}
 	ErrDeviceRevoked = &apiErrorImpl{
 		code:       string(errs.ErrCodeDeviceRevoked),
 		messageKey: string(errs.ErrCodeDeviceRevoked),

@@ -6,6 +6,22 @@ components:
                     example: invalid request payload
                     type: string
             type: object
+        ChangePasswordRequest:
+            properties:
+                newPassword:
+                    example: NewStr0ng#Pass2026
+                    type: string
+                oldPassword:
+                    example: OldStr0ng#Pass2025
+                    type: string
+                revokeOtherSessions:
+                    default: false
+                    example: true
+                    type: boolean
+            required:
+                - oldPassword
+                - newPassword
+            type: object
         ChangeRoleRequest:
             properties:
                 role:
@@ -24,6 +40,15 @@ components:
                     description: Error message
                     example: Forbidden
                     type: string
+            type: object
+        ForgotPasswordRequest:
+            properties:
+                email:
+                    example: user@example.com
+                    format: email
+                    type: string
+            required:
+                - email
             type: object
         InternalErrorGetMeResponse:
             properties:
@@ -59,6 +84,21 @@ components:
                     example: Not Found
                     type: string
             type: object
+        NotFoundResponse:
+            properties:
+                error:
+                    description: Error message
+                    example: Not found
+                    type: string
+            type: object
+        RefreshRequest:
+            properties:
+                refreshToken:
+                    example: 94fa10d7e6...
+                    type: string
+            required:
+                - refreshToken
+            type: object
         RegisterRequest:
             properties:
                 email:
@@ -76,10 +116,66 @@ components:
                 - email
                 - password
             type: object
+        ResetPasswordRequest:
+            properties:
+                newPassword:
+                    example: NewStr0ng#Pass2026
+                    type: string
+                token:
+                    example: 94fa10d7e6a5...
+                    type: string
+            required:
+                - token
+                - newPassword
+            type: object
+        SessionItem:
+            properties:
+                createdAt:
+                    format: date-time
+                    type: string
+                device:
+                    example: Chrome on macOS
+                    type: string
+                expiresAt:
+                    format: date-time
+                    type: string
+                id:
+                    example: session-uuid-123
+                    type: string
+                ipAddress:
+                    example: 192.168.1.1
+                    type: string
+                isCurrent:
+                    example: true
+                    type: boolean
+                lastActiveAt:
+                    format: date-time
+                    type: string
+                userAgent:
+                    example: Mozilla/5.0 ...
+                    type: string
+            required:
+                - id
+                - isCurrent
+                - createdAt
+                - expiresAt
+            type: object
+        SuccessChangePasswordResponse:
+            properties:
+                message:
+                    example: Password successfully updated.
+                    type: string
+            type: object
         SuccessChangeRoleResponse:
             properties:
                 message:
                     example: role successfully updated
+                    type: string
+            type: object
+        SuccessForgotPasswordResponse:
+            properties:
+                message:
+                    example: If your email is registered, you will receive password reset instructions shortly.
                     type: string
             type: object
         SuccessGetMeResponse:
@@ -113,10 +209,26 @@ components:
                     format: date-time
                     type: string
             type: object
+        SuccessListSessionsResponse:
+            properties:
+                sessions:
+                    items:
+                        $ref: '#/components/schemas/SessionItem'
+                    type: array
+            type: object
         SuccessLoginResponse:
             properties:
                 accessToken:
                     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    type: string
+                expiresIn:
+                    example: 900
+                    type: integer
+                refreshToken:
+                    example: 94fa10d7e6...
+                    type: string
+                tokenType:
+                    example: Bearer
                     type: string
                 user:
                     properties:
@@ -144,6 +256,21 @@ components:
                     example: has debug permission
                     type: string
             type: object
+        SuccessRefreshResponse:
+            properties:
+                accessToken:
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    type: string
+                expiresIn:
+                    example: 900
+                    type: integer
+                refreshToken:
+                    example: 83bc92e5a1...
+                    type: string
+                tokenType:
+                    example: Bearer
+                    type: string
+            type: object
         SuccessRegisterResponse:
             properties:
                 email:
@@ -155,6 +282,27 @@ components:
                     type: string
                 name:
                     example: John Doe
+                    type: string
+            type: object
+        SuccessResetPasswordResponse:
+            properties:
+                message:
+                    example: Password has been successfully reset.
+                    type: string
+            type: object
+        SuccessRevokeAllSessionsResponse:
+            properties:
+                message:
+                    example: sessions successfully revoked
+                    type: string
+                revokedCount:
+                    example: 3
+                    type: integer
+            type: object
+        SuccessRevokeSessionResponse:
+            properties:
+                message:
+                    example: session successfully revoked
                     type: string
             type: object
         UnauthorizedGetMeResponse:
@@ -184,6 +332,40 @@ info:
     version: 1.0.1
 openapi: 3.1.0
 paths:
+    /auth/change-password:
+        post:
+            operationId: postAuthChangePassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ChangePasswordRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessChangePasswordResponse'
+                    description: Password updated successfully
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
+                    description: Unauthorized
+            security:
+                - BearerAuth: []
+            summary: Change password for authenticated user
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/change-role:
         post:
             operationId: postAuthChangeRole
@@ -216,6 +398,32 @@ paths:
                 action: update
                 module: auth
                 resource: role
+    /auth/forgot-password:
+        post:
+            operationId: postAuthForgotPassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ForgotPasswordRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessForgotPasswordResponse'
+                    description: Password reset instructions dispatched
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+            summary: Request password reset instructions
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/login:
         post:
             operationId: postAuthLogin
@@ -299,6 +507,38 @@ paths:
                 - Auth
             x-api-version: v1
             x-audit: true
+    /auth/refresh:
+        post:
+            operationId: postAuthRefresh
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RefreshRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessRefreshResponse'
+                    description: Tokens refreshed successfully
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
+                    description: Unauthorized
+            summary: Rotate refresh token and issue new token pair
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/register:
         post:
             operationId: postAuthRegister
@@ -322,6 +562,116 @@ paths:
                                 $ref: '#/components/schemas/BadRequestResponse'
                     description: Bad Request
             summary: Register a new user
+            tags:
+                - Auth
+            x-api-version: v1
+    /auth/reset-password:
+        post:
+            operationId: postAuthResetPassword
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ResetPasswordRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessResetPasswordResponse'
+                    description: Password reset successfully
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestResponse'
+                    description: Bad Request
+            summary: Reset password using confirmation token
+            tags:
+                - Auth
+            x-api-version: v1
+    /auth/sessions:
+        delete:
+            operationId: deleteAuthSessions
+            parameters:
+                - description: If true, keep current session active
+                  in: query
+                  name: exclude_current
+                  schema:
+                    type: boolean
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessRevokeAllSessionsResponse'
+                    description: Sessions revoked successfully
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
+                    description: Unauthorized
+            security:
+                - BearerAuth: []
+            summary: Revoke all active sessions for current user
+            tags:
+                - Auth
+            x-api-version: v1
+        get:
+            operationId: getAuthSessions
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessListSessionsResponse'
+                    description: Active sessions retrieved successfully
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
+                    description: Unauthorized
+            security:
+                - BearerAuth: []
+            summary: List all active sessions for current user
+            tags:
+                - Auth
+            x-api-version: v1
+    /auth/sessions/{id}:
+        delete:
+            operationId: deleteAuthSessionByID
+            parameters:
+                - description: Session ID to revoke
+                  in: path
+                  name: id
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessRevokeSessionResponse'
+                    description: Session revoked successfully
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedResponse'
+                    description: Unauthorized
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundResponse'
+                    description: Not Found
+            security:
+                - BearerAuth: []
+            summary: Revoke a specific active session by ID
             tags:
                 - Auth
             x-api-version: v1

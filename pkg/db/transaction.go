@@ -2,10 +2,16 @@ package db
 
 import (
 	"context"
+	"errors"
 
 	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrNilDB     = errors.New("database connection cannot be nil")
+	ErrNilTxFunc = errors.New("transaction function cannot be nil")
 )
 
 type contextKey string
@@ -49,25 +55,45 @@ func GetUserID(ctx context.Context) string {
 	return ""
 }
 
+func isPostgresDialect(tx *gorm.DB) bool {
+	return tx != nil && tx.Config != nil && tx.Dialector != nil && tx.Dialector.Name() == "postgres"
+}
+
 func WithTx(ctx context.Context, db *gorm.DB, fn func(txCtx context.Context, tx *gorm.DB) error) error {
+	if fn == nil {
+		return ErrNilTxFunc
+	}
+
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+
 	if existingTx, ok := ctx.Value(TxContextKey).(*gorm.DB); ok && existingTx != nil {
 		return fn(ctx, existingTx)
 	}
 
+	if db == nil {
+		return ErrNilDB
+	}
+
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if isTenantEnabled() {
-			tenantID := GetTenantID(ctx)
-			if tenantID != "" {
-				if err := tx.Exec("SELECT set_config('app.tenant_id', ?, true)", tenantID).Error; err != nil {
-					return err
+		if isPostgresDialect(tx) {
+			if isTenantEnabled() {
+				tenantID := GetTenantID(ctx)
+				if tenantID != "" {
+					if err := tx.Exec("SELECT set_config('app.tenant_id', ?, true)", tenantID).Error; err != nil {
+						return err
+					}
 				}
 			}
-		}
 
-		userID := GetUserID(ctx)
-		if userID != "" {
-			if err := tx.Exec("SELECT set_config('app.user_id', ?, true)", userID).Error; err != nil {
-				return err
+			userID := GetUserID(ctx)
+			if userID != "" {
+				if err := tx.Exec("SELECT set_config('app.user_id', ?, true)", userID).Error; err != nil {
+					return err
+				}
 			}
 		}
 

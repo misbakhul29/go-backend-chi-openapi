@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
 	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/internal/auth"
 	"github.com/misbakhul29/backend-framework/internal/health"
@@ -17,10 +20,15 @@ type Server struct {
 
 func NewServer(db *gorm.DB, redis *redis.Client, rabbitmq *amqp091.Connection, jwtCfg config.JWT) *Server {
 	authRepo := auth.NewRepository(db)
-	authService := auth.NewService(authRepo, db, jwtCfg)
+	authService := auth.NewService(authRepo, db, redis, jwtCfg)
 
 	return &Server{
 		HealthHandler: health.NewHandler(),
 		AuthHandler:   auth.NewHandler(authService),
 	}
+}
+
+// MountRoutes mounts domain route trees directly onto a Chi router.
+func (s *Server) MountRoutes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
+	s.AuthHandler.RegisterRoutes(r, authMiddleware)
 }

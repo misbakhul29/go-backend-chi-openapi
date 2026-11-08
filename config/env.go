@@ -1,20 +1,24 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Database struct {
-	Hostname           string
-	Port               string
-	Provider           string
-	DBName             string
-	DBUser             string
-	DBPassword         string
-	EnableMultiTenant  bool
+	Hostname          string
+	Port              string
+	Provider          string
+	DBName            string
+	DBUser            string
+	DBPassword        string
+	EnableMultiTenant bool
 }
 
 type Redis struct {
@@ -24,16 +28,17 @@ type Redis struct {
 }
 
 type RabbitMQ struct {
-	Hostname string
-	Port     string
-	Username string
-	Password string
+	Hostname       string
+	Port           string
+	Username       string
+	Password       string
+	ExchangePrefix string
 }
 
 type JWT struct {
 	Secret     string
-	AccessTTL  int // seconds, default 900 (15 min)
-	RefreshTTL int // seconds, default 604800 (7 days)
+	AccessTTL  int
+	RefreshTTL int
 }
 
 var Cfg *Env
@@ -49,9 +54,18 @@ type Env struct {
 	EncryptionKey string
 }
 
-func LoadEnv() *Env {
-	if err := godotenv.Load(); err != nil {
-		panic("Error loading .env file")
+func isTestEnv() bool {
+	if nodeEnv := os.Getenv("NODE_ENV"); nodeEnv != "" {
+		return nodeEnv == "test"
+	}
+	return Cfg != nil && Cfg.NodeEnv == "test"
+}
+
+func LoadEnv(filenames ...string) *Env {
+	if err := godotenv.Load(filenames...); err != nil {
+		if !errors.Is(err, os.ErrNotExist) && !os.IsNotExist(err) {
+			log.Printf("warning: error loading .env file: %v", err)
+		}
 	}
 
 	Cfg = &Env{
@@ -73,10 +87,11 @@ func LoadEnv() *Env {
 			Password: EnvKey("REDIS_PASSWORD", ""),
 		},
 		RabbitMQ: RabbitMQ{
-			Hostname: EnvKey("RABBITMQ_HOST", "localhost"),
-			Port:     EnvKey("RABBITMQ_PORT", "5672"),
-			Username: EnvKey("RABBITMQ_USER", "guest"),
-			Password: EnvKey("RABBITMQ_PASSWORD", "guest"),
+			Hostname:       EnvKey("RABBITMQ_HOST", "localhost"),
+			Port:           EnvKey("RABBITMQ_PORT", "5672"),
+			Username:       EnvKey("RABBITMQ_USER", "guest"),
+			Password:       EnvKey("RABBITMQ_PASSWORD", "guest"),
+			ExchangePrefix: EnvKey("RABBITMQ_EXCHANGE_PREFIX", EnvKey("APP_NAME", "app")),
 		},
 		JWT: JWT{
 			Secret:     EnvKey("JWT_SECRET", "super-secret-key-change-in-production-1234567890"),
@@ -86,7 +101,6 @@ func LoadEnv() *Env {
 		EncryptionKey: EnvKey("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
 	}
 
-	// Fail-fast validation for mandatory configurations
 	validateMandatoryEnv("DB_HOST", Cfg.Database.Hostname)
 	validateMandatoryEnv("DB_PORT", Cfg.Database.Port)
 	validateMandatoryEnv("DB_NAME", Cfg.Database.DBName)
@@ -98,11 +112,23 @@ func LoadEnv() *Env {
 	validateMandatoryEnv("JWT_SECRET", Cfg.JWT.Secret)
 	validateMandatoryEnv("ENCRYPTION_KEY", Cfg.EncryptionKey)
 
+	if Cfg.NodeEnv == "production" {
+		if Cfg.JWT.Secret == "super-secret-key-change-in-production-1234567890" {
+			panic("FATAL: JWT_SECRET must be set to a secure secret in production")
+		}
+		if Cfg.EncryptionKey == "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
+			panic("FATAL: ENCRYPTION_KEY must be set to a secure key in production")
+		}
+	}
+
 	return Cfg
 }
 
 func validateMandatoryEnv(key, val string) {
-	if val == "" {
+	if isTestEnv() {
+		return
+	}
+	if strings.TrimSpace(val) == "" {
 		panic(fmt.Sprintf("FATAL: Environment variable %s is mandatory but not set", key))
 	}
 }
@@ -116,26 +142,26 @@ func EnvKey(key string, fallback string) string {
 }
 
 func EnvKeyInt(key string, fallback int) int {
-	val := os.Getenv(key)
+	val := strings.TrimSpace(os.Getenv(key))
 	if val == "" {
 		return fallback
 	}
-	var n int
-	if _, err := fmt.Sscanf(val, "%d", &n); err != nil {
+	n, err := strconv.Atoi(val)
+	if err != nil {
 		return fallback
 	}
 	return n
 }
 
 func EnvKeyBool(key string, fallback bool) bool {
-	val := os.Getenv(key)
+	val := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
 	if val == "" {
 		return fallback
 	}
 	switch val {
-	case "1", "t", "T", "true", "TRUE", "True", "yes", "YES", "y", "Y":
+	case "1", "t", "true", "yes", "y":
 		return true
-	case "0", "f", "F", "false", "FALSE", "False", "no", "NO", "n", "N":
+	case "0", "f", "false", "no", "n":
 		return false
 	default:
 		return fallback
@@ -144,7 +170,7 @@ func EnvKeyBool(key string, fallback bool) bool {
 
 func (d Database) DatabaseUrl() string {
 	sslmode := "disable"
-	if Cfg.NodeEnv != "development" {
+	if Cfg != nil && Cfg.NodeEnv == "production" {
 		sslmode = "require"
 	}
 	if d.Provider == "postgres" {

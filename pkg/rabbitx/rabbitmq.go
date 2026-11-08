@@ -2,13 +2,52 @@ package rabbitx
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/misbakhul29/backend-framework/config"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// InitRabbit initializes a RabbitMQ connection.
+type TopologyConfig struct {
+	Prefix         string
+	EventsExchange string
+	JobsExchange   string
+	NotifyExchange string
+	DLXExchange    string
+	DeadQueue      string
+}
+
+func NewTopologyConfig(prefix string) TopologyConfig {
+	p := strings.ToLower(strings.TrimSpace(prefix))
+	p = strings.ReplaceAll(p, " ", "-")
+	p = strings.Trim(p, ".")
+	for strings.Contains(p, "..") {
+		p = strings.ReplaceAll(p, "..", ".")
+	}
+	if p == "" {
+		p = "app"
+	}
+	return TopologyConfig{
+		Prefix:         p,
+		EventsExchange: fmt.Sprintf("%s.events", p),
+		JobsExchange:   fmt.Sprintf("%s.jobs", p),
+		NotifyExchange: fmt.Sprintf("%s.notifications", p),
+		DLXExchange:    fmt.Sprintf("%s.dlx", p),
+		DeadQueue:      fmt.Sprintf("%s.dead", p),
+	}
+}
+
+func DefaultExchangeNames(prefixes ...string) TopologyConfig {
+	if len(prefixes) > 0 && strings.TrimSpace(prefixes[0]) != "" {
+		return NewTopologyConfig(prefixes[0])
+	}
+	if config.Cfg != nil && strings.TrimSpace(config.Cfg.RabbitMQ.ExchangePrefix) != "" {
+		return NewTopologyConfig(config.Cfg.RabbitMQ.ExchangePrefix)
+	}
+	return NewTopologyConfig("app")
+}
+
 func InitRabbit(cfg config.RabbitMQ) (*amqp.Connection, error) {
 	conn, err := amqp.Dial(cfg.RabbitUrl())
 	if err != nil {
@@ -18,7 +57,12 @@ func InitRabbit(cfg config.RabbitMQ) (*amqp.Connection, error) {
 
 	observer.Log.Info("RabbitMQ connection established successfully")
 
-	if err := EnsureTopology(conn); err != nil {
+	prefix := cfg.ExchangePrefix
+	if prefix == "" && config.Cfg != nil {
+		prefix = config.Cfg.RabbitMQ.ExchangePrefix
+	}
+
+	if err := EnsureTopology(conn, prefix); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to setup topology: %w", err)
 	}
@@ -26,7 +70,6 @@ func InitRabbit(cfg config.RabbitMQ) (*amqp.Connection, error) {
 	return conn, nil
 }
 
-// Ping checks RabbitMQ connection health by opening a temporary channel.
 func Ping(conn *amqp.Connection) error {
 	if conn == nil || conn.IsClosed() {
 		return fmt.Errorf("rabbitmq connection is closed")
@@ -41,83 +84,86 @@ func Ping(conn *amqp.Connection) error {
 	return nil
 }
 
-// EnsureTopology declares exchanges and the default DLX/DLQ.
-func EnsureTopology(conn *amqp.Connection) error {
+func EnsureTopology(conn *amqp.Connection, prefixes ...string) error {
+	topo := DefaultExchangeNames(prefixes...)
+
 	ch, err := conn.Channel()
 	if err != nil {
 		return err
 	}
 	defer ch.Close()
 
-	// 1. Declare Main Exchanges
 	exchanges := []struct {
 		name string
 		kind string
 	}{
-		{"hris.events", "topic"},
-		{"hris.jobs", "direct"},
-		{"hris.notifications", "topic"},
-		{"hris.dlx", "topic"}, // dead letter exchange
+		{topo.EventsExchange, "topic"},
+		{topo.JobsExchange, "direct"},
+		{topo.NotifyExchange, "topic"},
+		{topo.DLXExchange, "topic"},
 	}
 
 	for _, ex := range exchanges {
 		err = ch.ExchangeDeclare(
 			ex.name,
 			ex.kind,
-			true,  // durable
-			false, // auto-delete
-			false, // internal
-			false, // no-wait
-			nil,   // arguments
+			true,
+			false,
+			false,
+			false,
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf("declare exchange %s: %w", ex.name, err)
 		}
 	}
 
-	// 2. Declare default hris.dead queue and bind to DLX
 	_, err = ch.QueueDeclare(
-		"hris.dead",
-		true,  // durable
-		false, // auto-delete
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return fmt.Errorf("declare hris.dead queue: %w", err)
-	}
-
-	err = ch.QueueBind(
-		"hris.dead",
-		"#", // wildcard for topic exchange hris.dlx
-		"hris.dlx",
+		topo.DeadQueue,
+		true,
+		false,
+		false,
 		false,
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("bind hris.dead queue: %w", err)
+		return fmt.Errorf("declare %s queue: %w", topo.DeadQueue, err)
+	}
+
+	err = ch.QueueBind(
+		topo.DeadQueue,
+		"#",
+		topo.DLXExchange,
+		false,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("bind %s queue: %w", topo.DeadQueue, err)
 	}
 
 	return nil
 }
 
-// DeclareQueue declares a queue, binds it to an exchange, and optionally configures its DLQ.
-func DeclareQueue(ch *amqp.Channel, name, boundToExchange, routingKey string, withDLQ bool) error {
+func DeclareQueue(ch *amqp.Channel, name, boundToExchange, routingKey string, withDLQ bool, dlxExchange ...string) error {
+	dlx := DefaultExchangeNames().DLXExchange
+	if len(dlxExchange) > 0 && strings.TrimSpace(dlxExchange[0]) != "" {
+		dlx = strings.TrimSpace(dlxExchange[0])
+	}
+
 	var args amqp.Table
 	if withDLQ {
 		args = amqp.Table{
-			"x-dead-letter-exchange":    "hris.dlx",
+			"x-dead-letter-exchange":    dlx,
 			"x-dead-letter-routing-key": name + ".dead",
 		}
 	}
 
 	_, err := ch.QueueDeclare(
 		name,
-		true,  // durable
-		false, // auto-delete
-		false, // exclusive
-		false, // no-wait
+		true,
+		false,
+		false,
+		false,
 		args,
 	)
 	if err != nil {
@@ -141,10 +187,10 @@ func DeclareQueue(ch *amqp.Channel, name, boundToExchange, routingKey string, wi
 		dlqName := name + ".dead"
 		_, err = ch.QueueDeclare(
 			dlqName,
-			true,  // durable
-			false, // auto-delete
-			false, // exclusive
-			false, // no-wait
+			true,
+			false,
+			false,
+			false,
 			nil,
 		)
 		if err != nil {
@@ -154,7 +200,7 @@ func DeclareQueue(ch *amqp.Channel, name, boundToExchange, routingKey string, wi
 		err = ch.QueueBind(
 			dlqName,
 			dlqName,
-			"hris.dlx",
+			dlx,
 			false,
 			nil,
 		)
@@ -162,18 +208,17 @@ func DeclareQueue(ch *amqp.Channel, name, boundToExchange, routingKey string, wi
 			return fmt.Errorf("bind DLQ %s to DLX: %w", dlqName, err)
 		}
 
-		// Declare a retry queue with TTL that dead-letters back to the original queue
 		retryQueueName := name + ".retry"
 		_, err = ch.QueueDeclare(
 			retryQueueName,
-			true,  // durable
-			false, // auto-delete
-			false, // exclusive
-			false, // no-wait
+			true,
+			false,
+			false,
+			false,
 			amqp.Table{
 				"x-dead-letter-exchange":    "",
 				"x-dead-letter-routing-key": name,
-				"x-message-ttl":             int32(5000), // 5 seconds retry delay
+				"x-message-ttl":             int32(5000),
 			},
 		)
 		if err != nil {

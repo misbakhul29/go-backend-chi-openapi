@@ -71,9 +71,9 @@ func (m *Middleware) handleBearerAuth(next http.Handler, w http.ResponseWriter, 
 		return
 	}
 
-	// Verify that this session still exists and has not expired in GORM database
+	// Verify that this session still exists, is not revoked, and has not expired in database
 	var count int64
-	err = m.db.Table("session").Where("id = ? AND expires_at > ?", principal.SessionID.String(), time.Now()).Count(&count).Error
+	err = m.db.Table("session").Where("id = ? AND is_revoked = ? AND expires_at > ?", principal.SessionID.String(), false, time.Now()).Count(&count).Error
 	if err != nil || count == 0 {
 		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
@@ -193,4 +193,33 @@ func getClientIP(r *http.Request) string {
 		ip = r.RemoteAddr
 	}
 	return ip
+}
+
+// RequireAuth is a lightweight Chi-compatible middleware enforcing valid bearer authentication and active session.
+func RequireAuth(jwtService *JWTService, db *gorm.DB) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, err := extractBearerToken(r.Header.Get("Authorization"))
+			if err != nil {
+				httpx.WriteError(w, r, httpx.ErrUnauthorized)
+				return
+			}
+
+			principal, err := jwtService.Authenticate(r.Context(), token)
+			if err != nil {
+				httpx.WriteError(w, r, httpx.ErrUnauthorized)
+				return
+			}
+
+			var count int64
+			err = db.Table("session").Where("id = ? AND is_revoked = ? AND expires_at > ?", principal.SessionID.String(), false, time.Now()).Count(&count).Error
+			if err != nil || count == 0 {
+				httpx.WriteError(w, r, httpx.ErrUnauthorized)
+				return
+			}
+
+			r = r.WithContext(WithPrincipal(r.Context(), principal))
+			next.ServeHTTP(w, r)
+		})
+	}
 }

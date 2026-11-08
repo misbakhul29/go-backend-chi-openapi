@@ -19,6 +19,23 @@ const (
 	argonSaltLen = 16
 )
 
+var dummyHash string
+
+func init() {
+	h, err := HashPassword("dummy-password-for-timing-mitigation")
+	if err == nil {
+		dummyHash = h
+	}
+}
+
+// DummyVerifyPassword runs an Argon2id comparison against a precomputed dummy hash
+// to eliminate timing differences between existent and nonexistent users.
+func DummyVerifyPassword(password string) {
+	if dummyHash != "" {
+		_, _ = VerifyPassword(password, dummyHash)
+	}
+}
+
 // HashPassword hashes a plaintext password using Argon2id.
 // Returns a formatted string: $argon2id$v=19$t,m,p$salt$hash
 func HashPassword(password string) (string, error) {

@@ -88,6 +88,9 @@ func Migration(db *gorm.DB, permissions []string) error {
 		&models.Verification{},
 		&models.Role{},
 		&models.Permission{},
+		&models.RefreshToken{},
+		&models.MfaBackupCode{},
+		&models.AuditLog{},
 	)
 	if err != nil && !strings.Contains(err.Error(), "42704") {
 		observer.Log.Warn("AutoMigrate schema notice", "error", err)
@@ -123,14 +126,15 @@ func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	}
 
 	adminRole := models.Role{
-		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte("ADMIN")).String(),
-		Name:      "ADMIN",
+		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte(models.RoleAdmin)).String(),
+		Name:      models.RoleAdmin,
+		IsDefault: false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 	if err := dbClient.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "is_default"}),
 	}).Create(&adminRole).Error; err != nil {
 		return err
 	}
@@ -140,14 +144,15 @@ func seedRolesAndPermissions(dbClient *gorm.DB, permissions []string) error {
 	}
 
 	memberRole := models.Role{
-		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte("MEMBER")).String(),
-		Name:      "MEMBER",
+		ID:        uuid.NewSHA1(uuid.NameSpaceDNS, []byte(models.RoleMember)).String(),
+		Name:      models.RoleMember,
+		IsDefault: true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 	if err := dbClient.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "is_default"}),
 	}).Create(&memberRole).Error; err != nil {
 		return err
 	}
