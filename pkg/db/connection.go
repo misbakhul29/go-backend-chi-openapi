@@ -37,6 +37,8 @@ func InitDB(cfg config.Database, permissions []string) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	_ = db.Use(observer.NewGormTracingPlugin())
+
 	sqlDB, err := db.DB()
 	if err != nil {
 		observer.Log.Error("failed to get sql.DB instance", slog.Any("error", err))

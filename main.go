@@ -25,12 +25,21 @@ import (
 func main() {
 	env := config.LoadEnv()
 
-	// Databas
+	// OpenTelemetry Tracer & APM
+	tp, _ := observer.InitTracer(env.APPName)
+	if tp != nil {
+		defer func() {
+			_ = tp.Shutdown(context.Background())
+		}()
+	}
+
+	// Database
 	DB, err := db.InitDB(env.Database, security.RegisteredPermissions)
 	if err != nil {
 		panic("failed to connect database: " + err.Error())
 	}
 	defer db.CloseDB(DB)
+	_ = observer.InitMetrics(DB)
 
 	// Redis
 	redisClient, err := redisx.InitRedis(env.Redis)
@@ -38,14 +47,6 @@ func main() {
 		panic("failed to connect to Redis: " + err.Error())
 	}
 	defer redisClient.Close()
-
-	// OpenTelemetry Tracer
-	tp, _ := observer.InitTracer(env.APPName)
-	if tp != nil {
-		defer func() {
-			_ = tp.Shutdown(context.Background())
-		}()
-	}
 
 	r := httpx.NewRouter()
 	r.Use(observer.TracerMiddleware)

@@ -3,6 +3,7 @@ package observer_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -39,6 +40,9 @@ func TestMetricsEndpoint(t *testing.T) {
 	body := rrMetrics.Body.String()
 	if body == "" {
 		t.Error("expected non-empty metrics output")
+	}
+	if !strings.Contains(body, "http_server") && !strings.Contains(body, "go_goroutines") {
+		t.Errorf("expected metrics to contain http_server or go_goroutines, got: %s", body)
 	}
 }
 

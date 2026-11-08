@@ -17,6 +17,7 @@ func InitRedis(cfg config.Redis) (*redis.Client, error) {
 		Password: cfg.Password,
 		DB:       0,
 	})
+	client.AddHook(observer.NewRedisTracingHook())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
