@@ -39,7 +39,7 @@ func main() {
 		panic("failed to connect database: " + err.Error())
 	}
 	defer db.CloseDB(DB)
-	_ = observer.InitMetrics(DB)
+	observer.RegisterDBMetrics(DB)
 
 	// Redis
 	redisClient, err := redisx.InitRedis(env.Redis)

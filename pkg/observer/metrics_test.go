@@ -41,8 +41,24 @@ func TestMetricsEndpoint(t *testing.T) {
 	if body == "" {
 		t.Error("expected non-empty metrics output")
 	}
+	if strings.Contains(body, "An error has occurred") {
+		t.Fatalf("metrics collection failed: %s", body)
+	}
 	if !strings.Contains(body, "http_server") && !strings.Contains(body, "go_goroutines") {
 		t.Errorf("expected metrics to contain http_server or go_goroutines, got: %s", body)
+	}
+
+	// 3. Ensure repeated InitMetrics and scrape does not error with duplicate metrics
+	_ = observer.InitMetrics("repeat-call")
+	observer.RegisterDBMetrics(nil)
+
+	reqMetrics2 := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rrMetrics2 := httptest.NewRecorder()
+	r.ServeHTTP(rrMetrics2, reqMetrics2)
+
+	body2 := rrMetrics2.Body.String()
+	if strings.Contains(body2, "An error has occurred") {
+		t.Fatalf("repeated scrape failed with error: %s", body2)
 	}
 }
 
