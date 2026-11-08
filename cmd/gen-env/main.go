@@ -243,7 +243,7 @@ func generateEnvContent(items []EnvItem, sourceFile string) string {
 		}
 
 		if it.Required {
-			sb.WriteString(fmt.Sprintf("# [Required]\n"))
+			fmt.Fprintf(&sb, "# [Required]\n")
 		}
 
 		sb.WriteString(fmt.Sprintf("%s=%s\n", it.Key, it.Default))
