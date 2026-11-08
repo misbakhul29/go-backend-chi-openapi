@@ -120,3 +120,4 @@ func (p *DiscordProvider) FetchUserProfile(ctx context.Context, token *oauth2.To
 		AvatarURL:     avatarURL,
 	}, nil
 }
+

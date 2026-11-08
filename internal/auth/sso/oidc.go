@@ -279,3 +279,4 @@ func (p *OIDCProvider) FetchUserProfile(ctx context.Context, token *oauth2.Token
 
 	return nil, errors.New("unable to retrieve user profile from oidc provider")
 }
+

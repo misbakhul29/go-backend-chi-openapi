@@ -112,3 +112,4 @@ func (p *TwitterProvider) FetchUserProfile(ctx context.Context, token *oauth2.To
 		AvatarURL:     info.Data.ProfileImageURL,
 	}, nil
 }
+

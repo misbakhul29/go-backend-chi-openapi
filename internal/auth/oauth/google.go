@@ -107,3 +107,4 @@ func (p *GoogleProvider) FetchUserProfile(ctx context.Context, token *oauth2.Tok
 		AvatarURL:     info.Picture,
 	}, nil
 }
+

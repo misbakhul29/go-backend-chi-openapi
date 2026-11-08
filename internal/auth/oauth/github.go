@@ -152,3 +152,4 @@ func (p *GitHubProvider) FetchUserProfile(ctx context.Context, token *oauth2.Tok
 		AvatarURL:     user.AvatarURL,
 	}, nil
 }
+

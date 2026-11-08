@@ -38,3 +38,4 @@ type OAuthProvider interface {
 	Exchange(ctx context.Context, code string, opts ...ExchangeOption) (*oauth2.Token, error)
 	FetchUserProfile(ctx context.Context, token *oauth2.Token) (*UserProfile, error)
 }
+

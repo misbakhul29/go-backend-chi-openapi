@@ -114,3 +114,4 @@ func (p *FacebookProvider) FetchUserProfile(ctx context.Context, token *oauth2.T
 		AvatarURL:     info.Picture.Data.URL,
 	}, nil
 }
+

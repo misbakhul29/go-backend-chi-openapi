@@ -142,3 +142,4 @@ func (s *DefaultMFAService) VerifyRecoveryCode(code string, storedHashes []strin
 	}
 	return false, -1
 }
+

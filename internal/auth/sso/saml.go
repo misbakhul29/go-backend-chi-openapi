@@ -241,3 +241,4 @@ func (s *SAMLService) VerifySignature(rawXML []byte, sigBase64 string) bool {
 	h := sha256.Sum256(rawXML)
 	return rsa.VerifyPKCS1v15(rsaPub, 0, h[:], sigBytes) == nil
 }
+

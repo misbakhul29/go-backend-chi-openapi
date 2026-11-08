@@ -66,3 +66,4 @@ func TestRecoveryCodes(t *testing.T) {
 		t.Fatal("expected invalid recovery code to fail")
 	}
 }
+

@@ -235,3 +235,4 @@ func TestAppleProvider_GenerateClientSecretAndFetch(t *testing.T) {
 		t.Fatalf("unexpected profile values: %+v", profile)
 	}
 }
+
