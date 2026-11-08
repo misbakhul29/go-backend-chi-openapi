@@ -14,6 +14,7 @@ import (
 	handler "github.com/misbakhul29/backend-framework/internal/server"
 	"github.com/misbakhul29/backend-framework/pkg/db"
 	"github.com/misbakhul29/backend-framework/pkg/httpx"
+	"github.com/misbakhul29/backend-framework/pkg/landing"
 	"github.com/misbakhul29/backend-framework/pkg/observer"
 	"github.com/misbakhul29/backend-framework/pkg/rabbitx"
 	"github.com/misbakhul29/backend-framework/pkg/redisx"
@@ -40,9 +41,7 @@ func main() {
 
 	r := httpx.NewRouter()
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Welcome to Chi Framework"))
-	})
+	r.Get("/", landing.Handler())
 
 	// Rabbit
 	rmq, err := rabbitx.InitRabbit(env.RabbitMQ)
@@ -71,7 +70,8 @@ func main() {
 		// Public endpoints (Docs & Welcome root)
 		swagger.Setup(r)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("Welcome to Chi Framework"))
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"status":"ok","name":"` + env.APPName + `","version":"v1","docs":"/api/v1/docs"}`))
 		})
 
 		// Secure API endpoints defined in OpenAPI specification
