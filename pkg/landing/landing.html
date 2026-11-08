@@ -598,11 +598,10 @@
 
       <div class="bento-card bento-forest">
         <div>
-          <div class="bento-label">API Contract ↘</div>
-          <div class="bento-val">Pure Go Codegen</div>
+          <div class="bento-label">Database DDL ↘</div>
+          <div class="bento-val">Versioned Migrations</div>
         </div>
-        <div class="bento-desc">Spesifikasi OpenAPI v1 dikompilasi murni dalam Go tanpa dependensi runtime Node.js atau
-          Redocly.</div>
+        <div class="bento-desc">Bebas dari bahaya AutoMigrate di produksi. Didukung CLI <code>cmd/migrate</code> dengan transactional lock dan rollback.</div>
       </div>
 
       <div class="bento-card bento-surface">
@@ -647,9 +646,8 @@
 
         <div class="num-card">
           <div class="num-index">04</div>
-          <h3>Multi-Tenancy & Persistence</h3>
-          <p>PostgreSQL dengan GORM, isolasi skema per-tenant, pooling koneksi teroptimasi, dan auto-migrasi schema
-            otomatis saat aplikasi bootstrap.</p>
+          <h3>Versioned Database Migrations</h3>
+          <p>Pengelolaan skema database terkontrol melalui CLI <code>cmd/migrate</code> (Goose engine). Menghilangkan risiko <em>AutoMigrate</em> di produksi, mendukung <em>transactional lock</em>, rollback otomatis, dan seeding peran.</p>
         </div>
 
         <div class="num-card">
@@ -694,6 +692,21 @@
         <div class="step-box">
           <div class="step-top">
             <span class="step-idx">STEP 02</span>
+            <h3>Terapkan Migrasi Database (cmd/migrate)</h3>
+          </div>
+          <p>Terapkan skema database terversi dan seeding peran/permission awal ke PostgreSQL:</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy command">Copy</button>
+            <pre><code>go run cmd/migrate push</code></pre>
+          </div>
+          <p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-dim);">
+            Gunakan <code>go run cmd/migrate status</code> untuk memeriksa status migrasi atau <code>make &lt;nama&gt;</code> untuk menambah tabel baru.
+          </p>
+        </div>
+
+        <div class="step-box">
+          <div class="step-top">
+            <span class="step-idx">STEP 03</span>
             <h3>Jalankan Server Backend</h3>
           </div>
           <p>Pastikan PostgreSQL, Redis, dan RabbitMQ sudah aktif, lalu jalankan server:</p>
@@ -709,7 +722,7 @@
 
         <div class="step-box">
           <div class="step-top">
-            <span class="step-idx">STEP 03</span>
+            <span class="step-idx">STEP 04</span>
             <h3>Buka Interactive Swagger UI</h3>
           </div>
           <p>Uji dan eksplorasi seluruh rute API langsung melalui antarmuka browser:</p>
@@ -721,7 +734,7 @@
 
         <div class="step-box">
           <div class="step-top">
-            <span class="step-idx">STEP 04</span>
+            <span class="step-idx">STEP 05</span>
             <h3>Alur Autentikasi Contoh (Register & Login)</h3>
           </div>
           <p>Daftarkan user baru dan lakukan autentikasi untuk memperoleh JWT Bearer token:</p>
@@ -745,7 +758,7 @@ curl -X GET "http://localhost:{{.Port}}/api/v1/auth/me" \
 
         <div class="step-box">
           <div class="step-top">
-            <span class="step-idx">STEP 05</span>
+            <span class="step-idx">STEP 06</span>
             <h3>Kompilasi Kontrak OpenAPI (Bila Mengubah Endpoint)</h3>
           </div>
           <p>Setiap kali mengubah schema rute di <code>api/openapi/v1/</code>, kompilasi spec dan generate kode server
