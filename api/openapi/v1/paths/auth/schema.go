@@ -390,4 +390,89 @@ func RegisterSchemas(schemas openapi3.Schemas) {
 			}),
 		},
 	})
+
+	// OAuth2 Schemas
+	schemas["OAuthAuthorizeResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"auth_url": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "https://accounts.google.com/o/oauth2/auth?...",
+			}),
+			"state": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "xyz123",
+			}),
+		},
+	})
+
+	schemas["OAuthCallbackRequest"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type:     &openapi3.Types{"object"},
+		Required: []string{"code"},
+		Properties: openapi3.Schemas{
+			"code": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "4/P7qOn912345",
+			}),
+			"code_verifier": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+			}),
+		},
+	})
+
+	// MFA Schemas
+	schemas["MFASetupResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"secret": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "JBSWY3DPEHPK3PXP",
+			}),
+			"otpauth_url": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "otpauth://totp/Backend:user@example.com?secret=...",
+			}),
+			"recovery_codes": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:  &openapi3.Types{"array"},
+				Items: openapi3.NewSchemaRef("", &openapi3.Schema{Type: &openapi3.Types{"string"}}),
+			}),
+		},
+	})
+
+	schemas["MFAVerifyRequest"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type:     &openapi3.Types{"object"},
+		Required: []string{"code"},
+		Properties: openapi3.Schemas{
+			"code": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "123456",
+			}),
+		},
+	})
+
+	schemas["MFAChallengeRequest"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type:     &openapi3.Types{"object"},
+		Required: []string{"mfa_token", "code"},
+		Properties: openapi3.Schemas{
+			"mfa_token": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "eyJhbGciOiJIUzI1NiIsIn...",
+			}),
+			"code": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "123456",
+			}),
+		},
+	})
+
+	schemas["MFAStatusResponse"] = openapi3.NewSchemaRef("", &openapi3.Schema{
+		Type: &openapi3.Types{"object"},
+		Properties: openapi3.Schemas{
+			"status": openapi3.NewSchemaRef("", &openapi3.Schema{
+				Type:    &openapi3.Types{"string"},
+				Example: "enabled",
+			}),
+		},
+	})
 }

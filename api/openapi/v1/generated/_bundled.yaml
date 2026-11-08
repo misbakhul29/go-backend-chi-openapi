@@ -77,6 +77,45 @@ components:
                 - email
                 - password
             type: object
+        MFAChallengeRequest:
+            properties:
+                code:
+                    example: "123456"
+                    type: string
+                mfa_token:
+                    example: eyJhbGciOiJIUzI1NiIsIn...
+                    type: string
+            required:
+                - mfa_token
+                - code
+            type: object
+        MFASetupResponse:
+            properties:
+                otpauth_url:
+                    example: otpauth://totp/Backend:user@example.com?secret=...
+                    type: string
+                recovery_codes:
+                    items:
+                        type: string
+                    type: array
+                secret:
+                    example: JBSWY3DPEHPK3PXP
+                    type: string
+            type: object
+        MFAStatusResponse:
+            properties:
+                status:
+                    example: enabled
+                    type: string
+            type: object
+        MFAVerifyRequest:
+            properties:
+                code:
+                    example: "123456"
+                    type: string
+            required:
+                - code
+            type: object
         NotFoundGetStatusResponse:
             properties:
                 error:
@@ -90,6 +129,26 @@ components:
                     description: Error message
                     example: Not found
                     type: string
+            type: object
+        OAuthAuthorizeResponse:
+            properties:
+                auth_url:
+                    example: https://accounts.google.com/o/oauth2/auth?...
+                    type: string
+                state:
+                    example: xyz123
+                    type: string
+            type: object
+        OAuthCallbackRequest:
+            properties:
+                code:
+                    example: 4/P7qOn912345
+                    type: string
+                code_verifier:
+                    example: dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+                    type: string
+            required:
+                - code
             type: object
         RefreshRequest:
             properties:
@@ -507,6 +566,63 @@ paths:
                 - Auth
             x-api-version: v1
             x-audit: true
+    /auth/mfa/challenge:
+        post:
+            operationId: postMFAChallenge
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/MFAChallengeRequest'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SuccessLoginResponse'
+                    description: MFA verification successful, session tokens issued
+            summary: Verify 2FA TOTP code or recovery code during login challenge
+            tags:
+                - Auth
+            x-api-version: v1
+    /auth/mfa/setup:
+        post:
+            operationId: postMFASetup
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MFASetupResponse'
+                    description: MFA secret and backup codes generated
+            security:
+                - BearerAuth: []
+            summary: Initiate 2FA TOTP setup
+            tags:
+                - Auth
+            x-api-version: v1
+    /auth/oauth/{provider}/authorize:
+        get:
+            operationId: getOAuthAuthorize
+            parameters:
+                - description: OAuth provider name (e.g. google, github, discord, twitter, apple, facebook)
+                  in: path
+                  name: provider
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/OAuthAuthorizeResponse'
+                    description: OAuth authorization URL generated
+            summary: Get OAuth provider authorization URL
+            tags:
+                - Auth
+            x-api-version: v1
     /auth/refresh:
         post:
             operationId: postAuthRefresh

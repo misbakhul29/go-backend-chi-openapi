@@ -71,7 +71,7 @@ func LoadEnv(filenames ...string) *Env {
 	Cfg = &Env{
 		APPName: EnvKey("APP_NAME", "Backend Framework"),
 		NodeEnv: EnvKey("NODE_ENV", "development"),
-		Port:    EnvKey("PORT", "8080"),
+		Port:    EnvKey("PORT", "8800"),
 		Database: Database{
 			Hostname:          EnvKey("DB_HOST", "localhost"),
 			Port:              EnvKey("DB_PORT", "5432"),

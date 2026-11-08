@@ -43,6 +43,14 @@ type AuthRepository interface {
 	RevokeSessionByID(ctx context.Context, sessionID, userID string) error
 	RevokeSessionsByUserID(ctx context.Context, userID string, excludeSessionID string) (int64, error)
 	UpdateSessionLastActive(ctx context.Context, sessionID string) error
+
+	// OAuth and MFA operations
+	GetAccountByProviderAndAccountID(ctx context.Context, providerID, accountID string) (*models.Account, error)
+	UpdateUserMFA(ctx context.Context, userID string, enabled bool, secret *string) error
+	CreateBackupCodes(ctx context.Context, codes []models.MfaBackupCode) error
+	GetUnusedBackupCodes(ctx context.Context, userID string) ([]models.MfaBackupCode, error)
+	MarkBackupCodeUsed(ctx context.Context, id string) error
+	DeleteUserBackupCodes(ctx context.Context, userID string) error
 }
 
 type AuthRepositoryImpl struct {
@@ -337,5 +345,58 @@ func (r *AuthRepositoryImpl) RevokeSessionsByUserID(ctx context.Context, userID 
 func (r *AuthRepositoryImpl) UpdateSessionLastActive(ctx context.Context, sessionID string) error {
 	return db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
 		return tx.Model(&models.Session{}).Where("id = ?", sessionID).Update("last_active_at", time.Now()).Error
+	})
+}
+
+func (r *AuthRepositoryImpl) GetAccountByProviderAndAccountID(ctx context.Context, providerID, accountID string) (*models.Account, error) {
+	var account models.Account
+	err := db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Where("provider_id = ? AND account_id = ?", providerID, accountID).First(&account).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (r *AuthRepositoryImpl) UpdateUserMFA(ctx context.Context, userID string, enabled bool, secret *string) error {
+	return db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]any{
+			"mfa_enabled": enabled,
+			"mfa_secret":  secret,
+		}).Error
+	})
+}
+
+func (r *AuthRepositoryImpl) CreateBackupCodes(ctx context.Context, codes []models.MfaBackupCode) error {
+	if len(codes) == 0 {
+		return nil
+	}
+	return db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Create(&codes).Error
+	})
+}
+
+func (r *AuthRepositoryImpl) GetUnusedBackupCodes(ctx context.Context, userID string) ([]models.MfaBackupCode, error) {
+	var codes []models.MfaBackupCode
+	err := db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Where("user_id = ? AND is_used = ?", userID, false).Find(&codes).Error
+	})
+	return codes, err
+}
+
+func (r *AuthRepositoryImpl) MarkBackupCodeUsed(ctx context.Context, id string) error {
+	now := time.Now()
+	return db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Model(&models.MfaBackupCode{}).Where("id = ?", id).Updates(map[string]any{
+			"is_used": true,
+			"used_at": &now,
+		}).Error
+	})
+}
+
+func (r *AuthRepositoryImpl) DeleteUserBackupCodes(ctx context.Context, userID string) error {
+	return db.WithTx(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
+		return tx.Where("user_id = ?", userID).Delete(&models.MfaBackupCode{}).Error
 	})
 }

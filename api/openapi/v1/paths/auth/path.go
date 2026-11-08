@@ -607,6 +607,104 @@ func RegisterPaths(paths *openapi3.Paths) {
 			Responses: revokeSingleResponses,
 		},
 	})
+
+	// /auth/oauth/{provider}/authorize
+	oauthAuthResponses := openapi3.NewResponses()
+	oauthAuthResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("OAuth authorization URL generated"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/OAuthAuthorizeResponse", nil),
+				},
+			},
+		},
+	})
+	paths.Set("/auth/oauth/{provider}/authorize", &openapi3.PathItem{
+		Get: &openapi3.Operation{
+			OperationID: "getOAuthAuthorize",
+			Summary:     "Get OAuth provider authorization URL",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			Parameters: openapi3.Parameters{
+				&openapi3.ParameterRef{
+					Value: &openapi3.Parameter{
+						Name:        "provider",
+						In:          openapi3.ParameterInPath,
+						Required:    true,
+						Description: "OAuth provider name (e.g. google, github, discord, twitter, apple, facebook)",
+						Schema:      openapi3.NewSchemaRef("", &openapi3.Schema{Type: &openapi3.Types{"string"}}),
+					},
+				},
+			},
+			Responses: oauthAuthResponses,
+		},
+	})
+
+	// /auth/mfa/challenge
+	mfaChallengeResponses := openapi3.NewResponses()
+	mfaChallengeResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("MFA verification successful, session tokens issued"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/SuccessLoginResponse", nil),
+				},
+			},
+		},
+	})
+	paths.Set("/auth/mfa/challenge", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postMFAChallenge",
+			Summary:     "Verify 2FA TOTP code or recovery code during login challenge",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Required: true,
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{
+							Schema: openapi3.NewSchemaRef("#/components/schemas/MFAChallengeRequest", nil),
+						},
+					},
+				},
+			},
+			Responses: mfaChallengeResponses,
+		},
+	})
+
+	// /auth/mfa/setup
+	mfaSetupResponses := openapi3.NewResponses()
+	mfaSetupResponses.Set("200", &openapi3.ResponseRef{
+		Value: &openapi3.Response{
+			Description: pointerToString("MFA secret and backup codes generated"),
+			Content: openapi3.Content{
+				"application/json": &openapi3.MediaType{
+					Schema: openapi3.NewSchemaRef("#/components/schemas/MFASetupResponse", nil),
+				},
+			},
+		},
+	})
+	paths.Set("/auth/mfa/setup", &openapi3.PathItem{
+		Post: &openapi3.Operation{
+			OperationID: "postMFASetup",
+			Summary:     "Initiate 2FA TOTP setup",
+			Tags:        []string{"Auth"},
+			Extensions: map[string]any{
+				"x-api-version": "v1",
+			},
+			Security: &openapi3.SecurityRequirements{
+				openapi3.SecurityRequirement{
+					"BearerAuth": []string{},
+				},
+			},
+			Responses: mfaSetupResponses,
+		},
+	})
 }
 
 func pointerToString(s string) *string {

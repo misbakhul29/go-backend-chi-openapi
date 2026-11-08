@@ -86,6 +86,19 @@ type LoginRequest struct {
 	Password string              `json:"password"`
 }
 
+// MFAChallengeRequest defines model for MFAChallengeRequest.
+type MFAChallengeRequest struct {
+	Code     string `json:"code"`
+	MfaToken string `json:"mfa_token"`
+}
+
+// MFASetupResponse defines model for MFASetupResponse.
+type MFASetupResponse struct {
+	OtpauthUrl    *string   `json:"otpauth_url,omitempty"`
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+	Secret        *string   `json:"secret,omitempty"`
+}
+
 // NotFoundGetStatusResponse defines model for NotFoundGetStatusResponse.
 type NotFoundGetStatusResponse struct {
 	// Error Error message
@@ -96,6 +109,12 @@ type NotFoundGetStatusResponse struct {
 type NotFoundResponse struct {
 	// Error Error message
 	Error *string `json:"error,omitempty"`
+}
+
+// OAuthAuthorizeResponse defines model for OAuthAuthorizeResponse.
+type OAuthAuthorizeResponse struct {
+	AuthUrl *string `json:"auth_url,omitempty"`
+	State   *string `json:"state,omitempty"`
 }
 
 // RefreshRequest defines model for RefreshRequest.
@@ -256,6 +275,9 @@ type PostAuthForgotPasswordJSONRequestBody = ForgotPasswordRequest
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
 
+// PostMFAChallengeJSONRequestBody defines body for PostMFAChallenge for application/json ContentType.
+type PostMFAChallengeJSONRequestBody = MFAChallengeRequest
+
 // PostAuthRefreshJSONRequestBody defines body for PostAuthRefresh for application/json ContentType.
 type PostAuthRefreshJSONRequestBody = RefreshRequest
 
@@ -285,6 +307,15 @@ type ServerInterface interface {
 	// GetMe Get current authenticated user
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// PostMFAChallenge Verify 2FA TOTP code or recovery code during login challenge
+	// (POST /auth/mfa/challenge)
+	PostMFAChallenge(w http.ResponseWriter, r *http.Request)
+	// PostMFASetup Initiate 2FA TOTP setup
+	// (POST /auth/mfa/setup)
+	PostMFASetup(w http.ResponseWriter, r *http.Request)
+	// GetOAuthAuthorize Get OAuth provider authorization URL
+	// (GET /auth/oauth/{provider}/authorize)
+	GetOAuthAuthorize(w http.ResponseWriter, r *http.Request, provider string)
 	// PostAuthRefresh Rotate refresh token and issue new token pair
 	// (POST /auth/refresh)
 	PostAuthRefresh(w http.ResponseWriter, r *http.Request)
@@ -348,6 +379,24 @@ func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 // GetMe Get current authenticated user
 // (GET /auth/me)
 func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostMFAChallenge Verify 2FA TOTP code or recovery code during login challenge
+// (POST /auth/mfa/challenge)
+func (_ Unimplemented) PostMFAChallenge(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostMFASetup Initiate 2FA TOTP setup
+// (POST /auth/mfa/setup)
+func (_ Unimplemented) PostMFASetup(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetOAuthAuthorize Get OAuth provider authorization URL
+// (GET /auth/oauth/{provider}/authorize)
+func (_ Unimplemented) GetOAuthAuthorize(w http.ResponseWriter, r *http.Request, provider string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -483,6 +532,60 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostMFAChallenge operation middleware
+func (siw *ServerInterfaceWrapper) PostMFAChallenge(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostMFAChallenge(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostMFASetup operation middleware
+func (siw *ServerInterfaceWrapper) PostMFASetup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostMFASetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOAuthAuthorize operation middleware
+func (siw *ServerInterfaceWrapper) GetOAuthAuthorize(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", chi.URLParam(r, "provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOAuthAuthorize(w, r, provider)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -767,6 +870,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/auth/me", wrapper.GetMe)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/mfa/challenge", wrapper.PostMFAChallenge)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/mfa/setup", wrapper.PostMFASetup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/oauth/{provider}/authorize", wrapper.GetOAuthAuthorize)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/refresh", wrapper.PostAuthRefresh)
 	})
 	r.Group(func(r chi.Router) {
@@ -799,45 +911,52 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7Ftbb9s4Fv4rBGeBeVF8SSbZ1k/rJG3XRdsETrtYbBEsGPFYYiORGpJy6hb+7wtSF0sybUtZO0kXC8xD",
-	"Rubl4zkfz5X9iX0RJ4ID1wqPfmLlhxAT++c5oVP4MwWlp6ASwRWYr4kUCUjNwI4BKYW0f3wncRIBHmHG",
-	"5yRiFMlsLkrIIhKEYg/rRWIGKC0ZD/ByWX4Rd9/A13jp4YuQ8ACuiVIPQhbbr2/L4aEYU9/8EzzcaDng",
-	"wW/m9+PB8dn6vh4WEXVPv4poffqpa7qEubiHKx2CvAGlmOAWFIUZSSONRzMSKfBWy2qZQrnMnRAREG6P",
-	"b0TEJFA8+lrD5NUOeLtRTlMRwUYZSRFB/XQf33w8fzN1nShVICcNWQyPT5w6q4LO53nZZi6gb4W8Y5QC",
-	"b8EhCsqXLNFMcDzCb8xnFINSJABcEedqzXaceitkIPROTkFMWFQXgTne3/L/7fkixh6eCRkTjUf58F0C",
-	"yka5BDPhGiQnkT3mO9AfYY8SKhZHCuQcJMoWaCWtJq4bTXSqXga2DyJgvIsCv4mQd1SghxOnaVDgS9DF",
-	"b20uR7FBsu0ifxL6rUg5PYSkPwmN7OLtpFtA2TOCWXsEU5hJUOFmk5b9/lncA69r5/UfMzIc0L/CWa/X",
-	"26mZ2jq3TiABUxrkwbnGSdww0u9FyNGlgEMy0+7qtSPoFBToQztkvU2j5LSNTrMldnvO3GNPNMTrx/Al",
-	"EA10bE9Yao8SDUeaxU6dUJgzv6HDi1CKGJDgKCb+1Y1rGnxPmATVZSe2pnd7kqM0ZfTIqXYPs2RMqQSl",
-	"Gr799XFvePaqN+wNnbPURSolcF2b5Q5jPBwRpce+ZnPochrjW8dBcw/8UfxgUUT6p70BaqN2RnEVr1dR",
-	"YVXITiakvg9KNUPOTcavsG81uMU0pLLFZmkULVCamKPTXjurV8ORhXSdMJjYy7l/p+2bUVInCJMZWohU",
-	"ImtREFNI5gYUqGd+QQ8sipAEH9gcUGFvkAQFGjGutEx940wUUqGQOlp0E92u8Kkw1nW39UWB/F3lmEl+",
-	"Tbz/1qIz6t4JTS5ri2+4sIVDcEI12kWF8W7hMbaLbFe8oezv62CyeYhxynyibewGPI1tEnOPPRwTxjVw",
-	"wn2bEqyA2l/XbT+LQWkSJ+s7TW6u0KuzwRCVY5CYIR0CkgXq6vrHg+OTo+Hg6Pjs83AwGpj//lXV2RZ7",
-	"tEVSH5jSRZq3RViVRJBpiO0ff5EwwyP8W3+VY/fzBLtf9UOr3YmUZLEdThYDb8JB7CBHhASL9+HdO59d",
-	"sfeTLz8mw09soiZ8eupfTM4m98k//3Hx/rXT4JZmdFJf8fVgUI41Cg9AZsnxI2O0PAr4bL9W550DkSA3",
-	"+ZDDxWasTULcLYRb1+t2TYtUd7TENT8QiSAAikSqOzH+GmTMLDsvQvDvOyIIiUIU7tIAJeU6nbYvs4Bf",
-	"kOOvTu7818dwSob74fhWMRU5yk6/9ytchMq5agnH48IxQ8I7AF6Pi2y80euIxtT6xlG02wW472M+rQnE",
-	"rEo3FxfphUgbofHJOhN34s5BPw5zS8guEF84SXUoJPsBdN+1rera3dE8I5ClhxX4qWR6cWOCgGzb7OaP",
-	"Ux2W5XebXzUMQqh1gpdmDcZnYh3mVQJ8fD1BNw8kCECiS+Er7OGI+ZCfNrue+OPkM/ZwKqN8UTXq90UC",
-	"XIlU+tATMujnk1TfjLURms6MFPHvgVP0VpIYHoS8R+PrCfbwHKTKUAx7g97QTDErkoThET7pDXsDW2TQ",
-	"oT1w30it79ts56ha0UhEVlkwSiHmWKYija+F0kY69TQNZ1kgKH0u6MLM8gXXeTZJkiQyoSkTvP9NCb7q",
-	"a+wKytzth2U96TR5sP2QMcke6ngw2BuI7XmpBVPXfWn18ryvdnGNNv7YIzpHV8gB6ZxQVIrPABjuDYDz",
-	"NjsgVMfVLh8efa1fu6+3y1sPqzSOiVzY8o2R/CpNnQmJzFrAtYEMFNnA08OaBMqkPXaZWw9/PyIJO1pd",
-	"h/nQblxjfNGWacN2Uww4KNOrDaTnZHmt6uHQ5XRjieP52d2FWV8sakQsgX5XSGYKbsEj87EST9soOEeT",
-	"iQJ7OBY0tYba8M3yJjPqeY0IL1dknNlqTwfzWy8PHYiU7k7d8xBzQz1sm/l1lLMoUwnRfvhimFpScVq2",
-	"5zei72rhIlOa2E0lW8E4EINqHcLnIU69QONyTAokcuXpjP9PO+t6ItDKY5dsHVfcrzWeiHBDWS0ZzAFl",
-	"FQFU9IC6slakuhVts0LKExCoWvfpwiCRvjQNtvWMH0Rg0CM/a+RUdWzyTkRsgwnlqWlXHWeFiQAc6rVn",
-	"egKt7pTdTT3bzpidhZrI5nwvR7EePt2jgLa8hHEgcT8f6cS1d7Di2WPjevsxpUznfqWkWl4b3G1P8jLn",
-	"gRxh4ynF87jCZiXXoU5bQ1Uol9r/c9ednnAqtPGBucAyl2cNJVMqBcThIf+WENY5Ry3atm3Ym488FH3r",
-	"D3Ba8Xe4f/42SuytfPGq9/3yYv4MGSKWJ4+pYtgsoUPeWKvmH4wsjidKz2XxXM2L3UnjC7N6DdYYhGWe",
-	"mCrGA+QLPmOmcWQaBY+Ku1Xt6XQEGtZZdGm/m+XKh9YeToipP2uQynr6RngwQ0bVHroHSEovn++VR5HY",
-	"w8yM/TMFucBF4wrDdz9KKfzbL98SreS79nj79im4tKn15Ioe8zFFn8bBqF+pBDvNo/4oakT+ylZjq1lC",
-	"S955G8P/Br0Ont653pM4hDdunHuVEvzaqjXn36di1wxK/yejy05W5XwxudxlWPKhaHKJtMhvWWFITG9r",
-	"ZUcYxU3P4zAlZZ/wySxJsxm82Yq8YCNiMPyxNwxrT94d+69e0T/KgiGVgM9mzG/wHd0tsieBbTm+eo63",
-	"yZBlD/OeppbReDzosl/XE/MSNAQS6XCR1XJSzvNnDofQYitYFXUetoyxG0qrUsZa5cJ2+QtNF+S5WSgN",
-	"8Vb62BH9VQ/pyDePu7byyU5pvAZ7Anpten/mEOHfiao+M3sxJupknz2xxj+gcwAoB3VtdIN/j9gsKzK6",
-	"Hu615tiW/qQEQqvdyYyJ9f6k3deczMI3t8Hlgw3158Py+UqfJKxv+H27/M8A",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
