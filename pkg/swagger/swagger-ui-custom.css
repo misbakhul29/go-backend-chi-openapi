@@ -9,31 +9,31 @@ body {
 }
 
 .swagger-ui {
-    --ink: #2d2d3a;
-    --ink-soft: #676779;
-    --ink-faint: #a3a3b0;
-    --line: #e6e6ef;
+    --ink: #0f172a;
+    --ink-soft: #475569;
+    --ink-faint: #94a3b8;
+    --line: #e2e8f0;
     --surface: #ffffff;
-    --bg: #f8f8fc;
+    --bg: #f8fafc;
 
-    --accent: #7c6cf0;
-    --accent-ink: #5847d1;
-    --accent-tint: #f0eefe;
+    --accent: #064e3b;
+    --accent-ink: #022c22;
+    --accent-tint: #ecfdf5;
 
-    --get: #4c8dff;
-    --get-tint: #eaf2ff;
-    --post: #22b573;
-    --post-tint: #e9fbf2;
-    --put: #e8a13d;
-    --put-tint: #fff6e8;
-    --patch: #2bb8ae;
-    --patch-tint: #e8fbf9;
-    --delete: #ef6f6f;
-    --delete-tint: #fef0f0;
-    --head: #a179e8;
-    --head-tint: #f4eefd;
-    --options: #8b93a8;
-    --options-tint: #f2f3f7;
+    --get: #0284c7;
+    --get-tint: #f0f9ff;
+    --post: #059669;
+    --post-tint: #ecfdf5;
+    --put: #d97706;
+    --put-tint: #fffbeb;
+    --patch: #0d9488;
+    --patch-tint: #f0fdfa;
+    --delete: #dc2626;
+    --delete-tint: #fef2f2;
+    --head: #7c3aed;
+    --head-tint: #f5f3ff;
+    --options: #64748b;
+    --options-tint: #f8fafc;
 
     --t: 150ms ease;
 
@@ -90,11 +90,11 @@ body {
     color: var(--accent-ink);
 }
 
-/* ---------- Topbar: soft, not stark dark ---------- */
+/* ---------- Topbar: forest green & lime accent ---------- */
 .swagger-ui .topbar {
-    background: var(--accent-tint);
-    border-bottom: 1px solid #e2ddfb;
-    padding: 24px 10px;
+    background: #093322;
+    border-bottom: 1px solid #134e35;
+    padding: 16px 10px;
 }
 
 /* Sembunyikan SVG logo bawaan Swagger */
@@ -106,9 +106,9 @@ body {
 .swagger-ui .topbar a::before {
     content: "";
     display: inline-block;
-    width: 32px;
-    height: 32px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23818cf8"/><stop offset="100%" stop-color="%236366f1"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(%23g)"/><path d="M32 28h24c10 0 10 18 0 18H32v30M32 46h15l18 28" stroke="%23ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>');
+    width: 28px;
+    height: 28px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="8" fill="%23d4f836"/><path d="M30 28h24c10 0 10 18 0 18H30v30M30 46h15l18 28" stroke="%2307170e" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -121,33 +121,33 @@ body {
 }
 
 .swagger-ui .topbar a::after {
-    content: "Rakaloka HRIS";
-    color: var(--accent-ink) !important;
-    font-weight: 700 !important;
-    font-size: 19px !important;
+    content: "REST API";
+    color: #d4f836 !important;
+    font-weight: 800 !important;
+    font-size: 18px !important;
     letter-spacing: -0.02em !important;
 }
 
 .swagger-ui .topbar .download-url-wrapper input[type="text"] {
-    border: 1px solid #d8d2f7;
-    background: #ffffff;
-    color: var(--ink);
+    border: 1px solid #1a5338;
+    background: #0f402b;
+    color: #ffffff;
     transition: border-color var(--t);
 }
 
 .swagger-ui .topbar .download-url-wrapper input[type="text"]:focus {
-    border-color: var(--accent);
+    border-color: #d4f836;
 }
 
 .swagger-ui .topbar .download-url-wrapper .download-url-button {
-    background: var(--accent);
-    color: #fff;
+    background: #d4f836;
+    color: #07170e;
     font-weight: 700;
     transition: background var(--t);
 }
 
 .swagger-ui .topbar .download-url-wrapper .download-url-button:hover {
-    background: var(--accent-ink);
+    background: #e2ff4f;
 }
 
 /* ---------- Scheme / server bar ---------- */

@@ -65,13 +65,23 @@ Each domain namespace is structured into distinct layers to enforce clean bounda
 ### 1. Prerequisites
 - Go 1.26.6+ Installed
 
-### 2. Generate OpenAPI Server Code
+### 2. Generate Environment Configuration (.env)
+Generate a fresh `.env` and `.env.example` file populated from `config/env.go`:
+```bash
+go run cmd/gen-env/main.go
+```
+Pass `-force` to overwrite existing configuration:
+```bash
+go run cmd/gen-env/main.go -force
+```
+
+### 3. Generate OpenAPI Server Code
 Whenever you modify files in `api/openapi/v1/`, run the generator command to compile the spec and regenerate `api.gen.go`:
 ```bash
 go run cmd/gen-api/v1/main.go
 ```
 
-### 3. Run the Server
+### 4. Run the Server
 Start the development server:
 ```bash
 go run main.go

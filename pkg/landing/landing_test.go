@@ -41,4 +41,14 @@ func TestLandingHandler(t *testing.T) {
 	if !strings.Contains(body, "/api/v1/docs") {
 		t.Errorf("expected body to link to Swagger docs")
 	}
+	if !strings.Contains(body, "https://github.com/misbakhul29/go-backend-chi-openapi") {
+		t.Errorf("expected body to contain GitHub repository URL")
+	}
+	if !strings.Contains(body, "Kelebihan Menggunakan Template Ini") {
+		t.Errorf("expected body to contain Kelebihan section")
+	}
+	if !strings.Contains(body, "Dokumentasi Cara Penggunaan") {
+		t.Errorf("expected body to contain Panduan section")
+	}
 }
+
