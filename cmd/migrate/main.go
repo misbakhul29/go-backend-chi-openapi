@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/misbakhul29/backend-framework/config"
-	dbPkg "github.com/misbakhul29/backend-framework/pkg/db"
+	"github.com/misbakhul29/backend-framework/pkg/db/seeder"
 	"github.com/misbakhul29/backend-framework/pkg/security"
 	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
@@ -146,7 +146,7 @@ func cmdPush() {
 
 	// Auto-seed default roles and permissions
 	fmt.Println("Seeding roles and permissions...")
-	if err := dbPkg.SeedRolesAndPermissions(db, security.RegisteredPermissions); err != nil {
+	if err := seeder.SeedRolesAndPermissions(db, security.RegisteredPermissions); err != nil {
 		log.Fatalf("Failed to seed roles and permissions: %v", err)
 	}
 	fmt.Println("✓ Seed completed.")
@@ -229,7 +229,7 @@ func cmdSeed() {
 	defer sqlDB.Close()
 
 	fmt.Println("Seeding registered roles and permissions...")
-	if err := dbPkg.SeedRolesAndPermissions(db, security.RegisteredPermissions); err != nil {
+	if err := seeder.SeedRolesAndPermissions(db, security.RegisteredPermissions); err != nil {
 		log.Fatalf("Seed failed: %v", err)
 	}
 	fmt.Println("✓ Seed completed.")
